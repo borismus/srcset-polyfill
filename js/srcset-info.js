@@ -9,13 +9,14 @@
   var SRCSET_REGEXP = new RegExp(srcsetRegex);
   var INT_REGEXP = /^[0-9]+$/;
 
-  function SrcsetInfo(srcsetValue) {
+  function SrcsetInfo(options) {
     this.imageCandidates = [];
-    this.srcsetValue = srcsetValue;
+    this.srcValue = options.src;
+    this.srcsetValue = options.srcset;
     this.isValid = true;
     this.error = '';
 
-    this._parse(srcsetValue);
+    this._parse(this.srcsetValue);
     if (!this.isValid) {
       console.error('Error: ' + this.error);
     }
@@ -42,22 +43,28 @@
         w: desc.w,
         h: desc.h
       });
-      // Only add this candidate if this desc doesn't duplicate an existing
-      // image candidate.
-      var isUnique = true;
-      for (var j = 0; j < this.imageCandidates.length; j++) {
-        var existingCandidate = this.imageCandidates[j];
-        if (existingCandidate.x == imageInfo.x &&
-            existingCandidate.w == imageInfo.w &&
-            existingCandidate.h == imageInfo.h) {
-          isUnique = false;
-          break;
-        }
-      }
-      if (isUnique) {
-        this.imageCandidates.push(imageInfo);
+      this._addCandidate(imageInfo);
+    }
+    // If there's a srcValue, add it to the candidates too.
+    if (this.srcValue) {
+      this._addCandidate(new ImageInfo({src: this.srcValue}));
+    }
+  };
+
+  /**
+   * Add an image candidate, unless it's a dupe of something that exists already.
+   */
+  SrcsetInfo.prototype._addCandidate = function(imageInfo) {
+    for (var j = 0; j < this.imageCandidates.length; j++) {
+      var existingCandidate = this.imageCandidates[j];
+      if (existingCandidate.x == imageInfo.x &&
+          existingCandidate.w == imageInfo.w &&
+          existingCandidate.h == imageInfo.h) {
+        // It's a dupe, so return early without adding the image candidate.
+        return;
       }
     }
+    this.imageCandidates.push(imageInfo);
   };
 
   SrcsetInfo.prototype._parseDescriptors = function(descString) {

@@ -12,12 +12,15 @@
       // Parse the srcset from the image element.
       var srcset = img.attributes.srcset;
       if (srcset) {
-        var srcsetInfo = new SrcsetInfo(srcset.textContent);
+        var srcsetInfo = new SrcsetInfo({src: img.src,
+                                      srcset: srcset.textContent});
         // Go through all the candidates, pick the best one that matches.
         var imageInfo = viewportInfo.getBestImage(srcsetInfo);
         // Replace the <img src> with this image.
         img.src = imageInfo.src;
         // Scale the image if necessary (ie. x != 1).
+        img.style.webkitTransform = 'scale(' + (1/imageInfo.x) + ')';
+        img.style.webkitTransformOrigin = '0 0';
       }
     }
   }
