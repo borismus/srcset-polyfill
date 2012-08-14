@@ -481,12 +481,18 @@ var jsUri = Uri;
 
   var IMAGE_FRAGMENT_REGEXP = new RegExp(imageFragmentRegex);
   var SRCSET_REGEXP = new RegExp(srcsetRegex);
+  var INT_REGEXP = /^[0-9]+$/;
 
   function SrcsetInfo(srcsetValue) {
     this.imageCandidates = [];
     this.srcsetValue = srcsetValue;
+    this.isValid = true;
+    this.error = '';
 
     this._parse(srcsetValue);
+    if (!this.isValid) {
+      console.error('Error: ' + this.error);
+    }
   }
 
   /**
@@ -495,13 +501,6 @@ var jsUri = Uri;
    * @returns [{url: _, x: _, w: _, h:_}, ...]
    */
   SrcsetInfo.prototype._parse = function() {
-    var validity = this._validate(this.srcsetValue);
-    if (!validity.isValid) {
-      // Report validation error.
-      console.error('srcset validation error: ' + validity.error);
-      return;
-    }
-
     // Get image candidate fragments from srcset string.
     var candidateStrings = this.srcsetValue.split(',');
     // Iterate through the candidates.
@@ -520,8 +519,8 @@ var jsUri = Uri;
       // Only add this candidate if this desc doesn't duplicate an existing
       // image candidate.
       var isUnique = true;
-      for (i = 0; i < this.imageCandidates.length; i++) {
-        var existingCandidate = this.imageCandidates[i];
+      for (var j = 0; j < this.imageCandidates.length; j++) {
+        var existingCandidate = this.imageCandidates[j];
         if (existingCandidate.x == imageInfo.x &&
             existingCandidate.w == imageInfo.w &&
             existingCandidate.h == imageInfo.h) {
@@ -540,32 +539,22 @@ var jsUri = Uri;
     var out = {};
     for (var i = 0; i < descriptors.length; i++) {
       var desc = descriptors[i];
-      var lastChar = desc[desc.length-1];
-      var value = desc.substring(0, desc.length-1);
-      out[lastChar] = value;
-    }
-    return out;
-  };
-
-  /**
-   * Does validation as per the spec (http://goo.gl/KWYzD).
-   *
-   * @returns {isValid: _, (error): _}
-   */
-  SrcsetInfo.prototype._validate = function() {
-    // Check against a rough regex:
-    var match = this.srcsetValue.match(SRCSET_REGEXP);
-    var isValid = false;
-    // Go through matches. If any are true, return true. Otherwise, false.
-    for (var i = 0; i < match.length; i++) {
-      if (match[i] !== '') {
-        isValid = true;
-        break;
+      if (desc.length > 0) {
+        var lastChar = desc[desc.length-1];
+        var value = desc.substring(0, desc.length-1);
+        var intVal = parseInt(value, 10);
+        var floatVal = parseFloat(value);
+        if (value.match(INT_REGEXP) && lastChar === 'w') {
+          out[lastChar] = intVal;
+        } else if (value.match(INT_REGEXP) && lastChar =='h') {
+          out[lastChar] = intVal;
+        } else if (!isNaN(floatVal) && lastChar == 'x') {
+          out[lastChar] = floatVal;
+        } else {
+          this.error = 'Invalid srcset descriptor found in "' + desc + '".';
+          this.isValid = false;
+        }
       }
-    }
-    var out = {isValid: isValid};
-    if (!isValid) {
-      out.error = 'Invalid srcset syntax for image';
     }
     return out;
   };
@@ -600,6 +589,15 @@ var jsUri = Uri;
   };
 
   /**
+   * Set a fake viewport for testing purposes.
+   */
+  ViewportInfo.prototype.setForTesting = function(options) {
+    this.w = options.w;
+    this.h = options.h;
+    this.x = options.x;
+  };
+
+  /**
    * Direct implementation of "processing the image candidates":
    * http://www.whatwg.org/specs/web-apps/current-work/multipage/embedded-content-1.html#processing-the-image-candidates
    *
@@ -630,19 +628,19 @@ var jsUri = Uri;
 
 
     // Get the smallest width.
-    var smallestWidth = this._getBestCandidateIf(images, function(a, b) { return a.w > b.w; });
+    var smallestWidth = this._getBestCandidateIf(images, function(a, b) { return a.w < b.w; });
     // Remove all candidates with width greater than it.
-    this._removeCandidatesIf(images, function(a, b) { return a.w < smallestWidth.w; });
+    this._removeCandidatesIf(images, function(a, b) { return a.w > smallestWidth.w; });
 
     // Get the smallest height.
-    var smallestHeight = this._getBestCandidateIf(images, function(a, b) { return a.h > b.h; });
+    var smallestHeight = this._getBestCandidateIf(images, function(a, b) { return a.h < b.h; });
     // Remove all candidates with height greater than it.
-    this._removeCandidatesIf(images, function(a, b) { return a.h < smallestWidth.h; });
+    this._removeCandidatesIf(images, function(a, b) { return a.h > smallestWidth.h; });
 
     // Get the smallest pixel density.
-    var smallestPxDensity = this._getBestCandidateIf(images, function(a, b) { return a.x > b.x; });
+    var smallestPxDensity = this._getBestCandidateIf(images, function(a, b) { return a.x < b.x; });
     // Remove all candidates with pixel density less than smallest px density.
-    this._removeCandidatesIf(images, function(a, b) { return a.x < smallestPxDensity.x; });
+    this._removeCandidatesIf(images, function(a, b) { return a.x > smallestPxDensity.x; });
 
     return images[0];
   };
@@ -725,9 +723,8 @@ var jsUri = Uri;
         // Go through all the candidates, pick the best one that matches.
         var imageInfo = viewportInfo.getBestImage(srcsetInfo);
         // Replace the <img src> with this image.
-        if (imageInfo) {
-          img.src = imageInfo.src;
-        }
+        img.src = imageInfo.src;
+        // Scale the image if necessary (ie. x != 1).
       }
     }
   }

@@ -17,6 +17,15 @@
   };
 
   /**
+   * Set a fake viewport for testing purposes.
+   */
+  ViewportInfo.prototype.setForTesting = function(options) {
+    this.w = options.w;
+    this.h = options.h;
+    this.x = options.x;
+  };
+
+  /**
    * Direct implementation of "processing the image candidates":
    * http://www.whatwg.org/specs/web-apps/current-work/multipage/embedded-content-1.html#processing-the-image-candidates
    *
@@ -47,19 +56,19 @@
 
 
     // Get the smallest width.
-    var smallestWidth = this._getBestCandidateIf(images, function(a, b) { return a.w > b.w; });
+    var smallestWidth = this._getBestCandidateIf(images, function(a, b) { return a.w < b.w; });
     // Remove all candidates with width greater than it.
-    this._removeCandidatesIf(images, function(a, b) { return a.w < smallestWidth.w; });
+    this._removeCandidatesIf(images, function(a, b) { return a.w > smallestWidth.w; });
 
     // Get the smallest height.
-    var smallestHeight = this._getBestCandidateIf(images, function(a, b) { return a.h > b.h; });
+    var smallestHeight = this._getBestCandidateIf(images, function(a, b) { return a.h < b.h; });
     // Remove all candidates with height greater than it.
-    this._removeCandidatesIf(images, function(a, b) { return a.h < smallestWidth.h; });
+    this._removeCandidatesIf(images, function(a, b) { return a.h > smallestWidth.h; });
 
     // Get the smallest pixel density.
-    var smallestPxDensity = this._getBestCandidateIf(images, function(a, b) { return a.x > b.x; });
+    var smallestPxDensity = this._getBestCandidateIf(images, function(a, b) { return a.x < b.x; });
     // Remove all candidates with pixel density less than smallest px density.
-    this._removeCandidatesIf(images, function(a, b) { return a.x < smallestPxDensity.x; });
+    this._removeCandidatesIf(images, function(a, b) { return a.x > smallestPxDensity.x; });
 
     return images[0];
   };

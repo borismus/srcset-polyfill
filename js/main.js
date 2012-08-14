@@ -17,7 +17,7 @@
         var imageInfo = viewportInfo.getBestImage(srcsetInfo);
         // Replace the <img src> with this image.
         img.src = imageInfo.src;
-        // Scale the image if necessary (x != 1).
+        // Scale the image if necessary (ie. x != 1).
       }
     }
   }
