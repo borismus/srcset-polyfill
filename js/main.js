@@ -1,6 +1,8 @@
 (function(exports) {
 
   function main() {
+    // TODO: If the browser supports @srcset natively, don't do any polyfill.
+
     // Get the user agent's capabilities (viewport width, viewport height, dPR).
     var viewportInfo = new ViewportInfo();
     viewportInfo.compute();
@@ -16,6 +18,7 @@
                                       srcset: srcset.textContent});
         // Go through all the candidates, pick the best one that matches.
         var imageInfo = viewportInfo.getBestImage(srcsetInfo);
+        // TODO: consider using -webkit-image-set instead (if available).
         // Replace the <img src> with this image.
         img.src = imageInfo.src;
         // Scale the image if necessary (ie. x != 1).
