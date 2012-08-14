@@ -16,9 +16,8 @@
         // Go through all the candidates, pick the best one that matches.
         var imageInfo = viewportInfo.getBestImage(srcsetInfo);
         // Replace the <img src> with this image.
-        if (imageInfo) {
-          img.src = imageInfo.src;
-        }
+        img.src = imageInfo.src;
+        // Scale the image if necessary (x != 1).
       }
     }
   }

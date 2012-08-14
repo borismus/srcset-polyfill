@@ -2,7 +2,7 @@
 
   // Directly from http://stackoverflow.com/questions/3809401/what-is-a-good-regular-expression-to-match-a-url:
   var urlRegex = '[-a-zA-Z0-9@:%_+.~#?&//=]*';
-  var imageFragmentRegex = '\\s*(' + urlRegex + ')\\s*([^,$]*)';
+  var imageFragmentRegex = '\\s*(' + urlRegex + ')\\s*([0-9xwh.\\s]*)';
   var srcsetRegex = '(' + imageFragmentRegex + ',?)+';
 
   var IMAGE_FRAGMENT_REGEXP = new RegExp(imageFragmentRegex);
@@ -43,7 +43,21 @@
         w: desc.w,
         h: desc.h
       });
-      this.imageCandidates.push(imageInfo);
+      // Only add this candidate if this desc doesn't duplicate an existing
+      // image candidate.
+      var isUnique = true;
+      for (i = 0; i < this.imageCandidates.length; i++) {
+        var existingCandidate = this.imageCandidates[i];
+        if (existingCandidate.x == imageInfo.x &&
+            existingCandidate.w == imageInfo.w &&
+            existingCandidate.h == imageInfo.h) {
+          isUnique = false;
+          break;
+        }
+      }
+      if (isUnique) {
+        this.imageCandidates.push(imageInfo);
+      }
     }
   };
 
