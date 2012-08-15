@@ -4,7 +4,7 @@ See [the specification][spec] for the reference algorithm.
 
 ## Usage
 
-1. Use the `srcset` attribute of `<img>` elements. For example:
+Use the `srcset` attribute of `<img>` elements. For example:
 
     <img alt="The Breakfast Combo"
          src="banner.jpeg"
@@ -12,7 +12,7 @@ See [the specification][spec] for the reference algorithm.
                  banner-phone-HD.jpeg 100w 2x"/>
 
 
-2. Include `build/srcset.min.js` in your page.
+Include `build/srcset.min.js` in your page.
 
 ## Open questions
 
