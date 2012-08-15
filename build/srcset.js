@@ -714,8 +714,16 @@ var jsUri = Uri;
 
 (function(exports) {
 
+  function isSrcsetImplemented() {
+    var img = new Image();
+    return img.srcset !== undefined;
+  }
+
   function main() {
-    // TODO: If the browser supports @srcset natively, don't do any polyfill.
+    // If the browser supports @srcset natively, don't do any polyfill.
+    if (isSrcsetImplemented()) {
+      return;
+    }
 
     // Get the user agent's capabilities (viewport width, viewport height, dPR).
     var viewportInfo = new ViewportInfo();
