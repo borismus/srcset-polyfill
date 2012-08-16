@@ -90,3 +90,11 @@ test('complex srcset picks best image candidate', function() {
   var img = old.getBestImage(s1);
   equal(img.src, 'banner-phone.jpeg', 'picked best image for desktop');
 });
+
+test('john mellor test', function() {
+  var mobile = new ViewportInfo();
+  mobile.setForTesting({w: 320, h: 480, x: 2.1});
+  var s1 = new SrcsetInfo({srcset: 'ipad1.jpg 1024w, iphone4.jpg 320w 2x'});
+  var img = mobile.getBestImage(s1);
+  equal(img.src, 'iphone4.jpg', 'picked best image for phone');
+});
