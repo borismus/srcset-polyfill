@@ -716,7 +716,7 @@ var jsUri = Uri;
 
   function isSrcsetImplemented() {
     var img = new Image();
-    return img.srcset !== undefined;
+    return 'srcset' in img;
   }
 
   function main() {
