@@ -36,6 +36,17 @@
     }
   }
 
-  window.addEventListener('DOMContentLoaded', main);
+	// Run on domready (window.load as a fallback)
+	if( window.addEventListener ){
+    window.addEventListener( "DOMContentLoaded", function(){
+			main();
+			// Run once only
+			window.removeEventListener( "load", main, false );
+		}, false );
+		window.addEventListener( "load", main, false );
+	}
+	else if( window.attachEvent ){
+		window.attachEvent( "onload", main );
+	}
 
 })(window);
