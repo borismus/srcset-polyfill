@@ -29,9 +29,13 @@
         // TODO: consider using -webkit-image-set instead (if available).
         // Replace the <img src> with this image.
         img.src = imageInfo.src;
-        // Scale the image if necessary (ie. x != 1).
-        img.style.webkitTransform = 'scale(' + (1/imageInfo.x) + ')';
-        img.style.webkitTransformOrigin = '0 0';
+
+        // If there's no set size, then we scale the image if necessary
+        // (e.g. x != 1)
+        if (!(img.width || img.height || img.style.height || img.style.width)) {
+          img.style.webkitTransform = 'scale(' + (1/imageInfo.x) + ')';
+          img.style.webkitTransformOrigin = '0 0';
+        }
       }
     }
   }
