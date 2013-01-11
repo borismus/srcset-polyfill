@@ -2,7 +2,6 @@ module.exports = function(grunt) {
   grunt.initConfig({
     lint: { all: ['js/*.js'] },
     concat: { 'build/srcset.js': [
-      'js/libs/*',
       'js/srcset-info.js',
       'js/viewport-info.js',
       'js/main.js'
