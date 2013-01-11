@@ -6,11 +6,20 @@ See [the specification][spec] for the reference algorithm.
 
 Use the `srcset` attribute of `<img>` elements. For example:
 
-    <img alt="The Breakfast Combo"
-         src="banner.jpeg"
-         srcset="banner-HD.jpeg 2x, banner-phone.jpeg 100w,
-                 banner-phone-HD.jpeg 100w 2x"/>
+```html
+<img alt="The Breakfast Combo"
+     src="banner.jpeg"
+     srcset="banner-HD.jpeg 2x, banner-phone.jpeg 100w,
+             banner-phone-HD.jpeg 100w 2x"/>
+```
 
+To programatically update the `src` attribute of dynamically
+inserted elements, there is a declarative API:
+
+```javascript
+var image = document.getElementsByTagName('img')[0];
+setBestImageFor(image);
+```
 
 Include `build/srcset.min.js` in your page.
 
