@@ -473,14 +473,6 @@ var Uri = function (uriString) {
 var jsUri = Uri;
 
 (function(exports) {
-
-  // Directly from http://stackoverflow.com/questions/3809401/what-is-a-good-regular-expression-to-match-a-url:
-  var urlRegex = '[-a-zA-Z0-9@:%_+.~#?&//=]*';
-  var imageFragmentRegex = '\\s*(' + urlRegex + ')\\s*([0-9xwh.\\s]*)';
-  var srcsetRegex = '(' + imageFragmentRegex + ',?)+';
-
-  var IMAGE_FRAGMENT_REGEXP = new RegExp(imageFragmentRegex);
-  var SRCSET_REGEXP = new RegExp(srcsetRegex);
   var INT_REGEXP = /^[0-9]+$/;
 
   function SrcsetInfo(options) {
@@ -502,23 +494,77 @@ var jsUri = Uri;
    * @returns [{url: _, x: _, w: _, h:_}, ...]
    */
   SrcsetInfo.prototype._parse = function() {
-    // Get image candidate fragments from srcset string.
-    var candidateStrings = this.srcsetValue.split(',');
-    // Iterate through the candidates.
-    for (var i = 0; i < candidateStrings.length; i++) {
-      var candidate = candidateStrings[i];
-      // Get all details for the candidate.
-      var match = candidate.match(IMAGE_FRAGMENT_REGEXP);
-      var src = match[1];
-      var desc = this._parseDescriptors(match[2]);
-      var imageInfo = new ImageInfo({
-        src: match[1],
+    // 1. Let input be the value of the img element's srcset attribute.
+    // 2. Let position be a pointer into input,
+    //    initially pointing at the start of the string.
+    // 3. Let raw candidates be an initially empty ordered
+    //    list of URLs with associated unparsed descriptors.
+    //    The order of entries in the list is the order in which entries
+    //    are added to the list.
+    var input = this.srcsetValue,
+        position = 0,
+        rawCandidates = [],
+        url,
+        descriptors;
+
+    while (input !== '') {
+      // 4. Splitting loop: Skip whitespace.
+      while (input.charAt(0) === ' ') {
+        input = input.slice(1);
+      }
+
+      position = input.indexOf(' ');
+
+      if (position !== -1) {
+        // 5. Collect a sequence of characters that are not space characters,
+        //    and let that be url.
+        url = input.slice(0, position);
+
+        // 6. If url is empty, then jump to the step labeled descriptor parse;
+        if (url === '') {
+          break;
+        }
+        input = input.slice(position + 1);
+
+        // 7. Collect a sequence of characters that are not U+002C COMMA
+        //    characters (,), and let that be descriptors
+        position = input.indexOf(',');
+        if (position === -1) {
+          descriptors = input;
+          input = '';
+        } else {
+          descriptors =  input.slice(0, position);
+          input = input.slice(position + 1);
+        }
+
+        // 8. Add url to raw candidates, associated with descriptors
+        rawCandidates.push({
+          url: url,
+          descriptors: descriptors
+        });
+
+      // Break on invalid srcset descriptors
+      } else {
+        // 8. Add url to raw candidates, associated with descriptors
+        rawCandidates.push({
+          url: input,
+          descriptors: ''
+        });
+        input = '';
+      }
+    }
+
+    for (var i = 0, len = rawCandidates.length; i < len; i++) {
+      var candidate = rawCandidates[i],
+          desc = this._parseDescriptors(candidate.descriptors);
+      this._addCandidate(new ImageInfo({
+        src: candidate.url,
         x: desc.x,
         w: desc.w,
         h: desc.h
-      });
-      this._addCandidate(imageInfo);
+      }));
     }
+
     // If there's a srcValue, add it to the candidates too.
     if (this.srcValue) {
       this._addCandidate(new ImageInfo({src: this.srcValue}));

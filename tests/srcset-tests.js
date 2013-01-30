@@ -81,13 +81,15 @@ test('complex srcset picks best image candidate', function() {
   var s1 = new SrcsetInfo({src: 'banner.jpeg', srcset: 'banner-HD.jpeg 2x, banner-phone.jpeg 400w, banner-phone-HD.jpeg 400w 2x'});
   var img = mobile.getBestImage(s1);
   equal(img.src, 'banner-phone-HD.jpeg', 'picked best image for phone');
+
   var desktop = new ViewportInfo();
   desktop.setForTesting({w: 1440, h: 1280, x: 2});
-  var img = desktop.getBestImage(s1);
+  img = desktop.getBestImage(s1);
   equal(img.src, 'banner-HD.jpeg', 'picked best image for desktop');
+
   var old = new ViewportInfo();
   old.setForTesting({w: 320, h: 480, x: 1});
-  var img = old.getBestImage(s1);
+  img = old.getBestImage(s1);
   equal(img.src, 'banner-phone.jpeg', 'picked best image for desktop');
 });
 
@@ -97,4 +99,12 @@ test('john mellor test', function() {
   var s1 = new SrcsetInfo({srcset: 'ipad1.jpg 1024w, iphone4.jpg 320w 2x'});
   var img = mobile.getBestImage(s1);
   equal(img.src, 'iphone4.jpg', 'picked best image for phone');
+});
+
+test('srcset values with commas in URLs', function () {
+  var s1 = new SrcsetInfo({src: 'banner.jpeg', srcset: '/c_limit,w_360/banner.jpeg 2x'});
+  equal(s1.imageCandidates.length, 2);
+  var candidate = s1.imageCandidates[0];
+  equal(candidate.src, "/c_limit,w_360/banner.jpeg");
+  equal(candidate.x, 2);
 });
