@@ -21,4 +21,11 @@ Include `build/srcset.min.js` in your page.
 - Is it safe to use `-webkit-transform` to scale things?
 - Is it worth falling back to `-webkit-image-set` if available?
 
+## Want to reduce bandwidth use on mobile devices?
+
+This project is not suitable for you if you are wanting to serve smaller images
+to mobile devices *to reduce bandwidth*. The device will download the original
+(larger) image and the mobile optimised version. [More detail on this][issue11].
+
 [spec]: http://www.whatwg.org/specs/web-apps/current-work/multipage/embedded-content-1.html#processing-the-image-candidates
+[issue11]: https://github.com/borismus/srcset-polyfill/issues/11
