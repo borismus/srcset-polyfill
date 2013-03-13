@@ -20,10 +20,10 @@
     for (var i = 0; i < images.length; i++) {
       var img = images[i];
       // Parse the srcset from the image element.
-      var srcset = img.attributes.srcset;
+      var srcset = img.getAttribute('srcset');
       if (srcset) {
         var srcsetInfo = new SrcsetInfo({src: img.src,
-                                      srcset: srcset.textContent});
+                                      srcset: srcset});
         // Go through all the candidates, pick the best one that matches.
         var imageInfo = viewportInfo.getBestImage(srcsetInfo);
         // TODO: consider using -webkit-image-set instead (if available).
@@ -36,6 +36,12 @@
     }
   }
 
-  window.addEventListener('DOMContentLoaded', main);
+  // Small cross browser document ready.
+  var readyTimer = setInterval(function () {
+    if (document.readyState === "complete") {
+      main();
+      clearInterval(readyTimer);
+    }
+  }, 10);
 
 })(window);

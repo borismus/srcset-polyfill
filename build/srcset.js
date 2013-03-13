@@ -661,21 +661,21 @@ var jsUri = Uri;
     // Get the largest width.
     var largestWidth = this._getBestCandidateIf(images, function(a, b) { return a.w > b.w; });
     // Remove all candidates with widths less than client width.
-    this._removeCandidatesIf(images, function(a) { return a.w < this.w; }.bind(this));
+    this._removeCandidatesIf(images, (function(scope) { return function(a) { return a.w < scope.w; }; })(this));
     // If none are left, keep the one with largest width.
     if (images.length === 0) { images = [largestWidth]; }
 
     // Get the largest height.
     var largestHeight = this._getBestCandidateIf(images, function(a, b) { return a.h > b.h; });
     // Remove all candidates with heights less than client height.
-    this._removeCandidatesIf(images, function(a) { return a.h < this.h; }.bind(this));
+    this._removeCandidatesIf(images, (function(scope) { return function(a) { return a.h < scope.h; }; })(this));
     // If none are left, keep one with largest height.
     if (images.length === 0) { images = [largestHeight]; }
 
     // Get the largest pixel density.
     var largestPxDensity = this._getBestCandidateIf(images, function(a, b) { return a.x > b.x; });
     // Remove all candidates with pxdensity less than client pxdensity.
-    this._removeCandidatesIf(images, function(a) { return a.x < this.x; }.bind(this));
+    this._removeCandidatesIf(images, (function(scope) { return function(a) { return a.x < scope.x; }; })(this));
     // If none are left, keep one with largest pixel density.
     if (images.length === 0) { images = [largestPxDensity]; }
 
@@ -780,10 +780,10 @@ var jsUri = Uri;
     for (var i = 0; i < images.length; i++) {
       var img = images[i];
       // Parse the srcset from the image element.
-      var srcset = img.attributes.srcset;
+      var srcset = img.getAttribute('srcset');
       if (srcset) {
         var srcsetInfo = new SrcsetInfo({src: img.src,
-                                      srcset: srcset.textContent});
+                                      srcset: srcset});
         // Go through all the candidates, pick the best one that matches.
         var imageInfo = viewportInfo.getBestImage(srcsetInfo);
         // TODO: consider using -webkit-image-set instead (if available).
@@ -796,6 +796,12 @@ var jsUri = Uri;
     }
   }
 
-  window.addEventListener('DOMContentLoaded', main);
+  // Small cross browser document ready.
+  var readyTimer = setInterval(function () {
+    if (document.readyState === "complete") {
+      main();
+      clearInterval(readyTimer);
+    }
+  }, 10);
 
 })(window);
