@@ -636,8 +636,8 @@ var jsUri = Uri;
    * devicePixelRatio.
    */
   ViewportInfo.prototype.compute = function() {
-    this.w = window.innerWidth;
-    this.h = window.innerHeight;
+    this.w = window.innerWidth || document.documentElement.clientWidth;
+    this.h = window.innerHeight || document.documentElement.clientHeight;
     this.x = window.devicePixelRatio;
   };
 
