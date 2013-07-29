@@ -35,6 +35,8 @@
       }
     }
   }
+  
+  exports.srcsetPolyfill = main;
 
   // Small cross browser document ready.
   var readyTimer = setInterval(function () {
