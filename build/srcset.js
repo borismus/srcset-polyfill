@@ -794,9 +794,14 @@ var jsUri = Uri;
         img.style.webkitTransformOrigin = '0 0';
       }
     }
+
+    if(jQuery) {
+      jQuery(document).trigger('srcsetPolyfill');
+    }
   }
   
   exports.srcsetPolyfill = main;
+  exports.srcsetImplemented = isSrcsetImplemented;
 
   // Small cross browser document ready.
   var readyTimer = setInterval(function () {
