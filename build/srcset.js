@@ -800,6 +800,9 @@ var jsUri = Uri;
   var readyTimer = setInterval(function () {
     if (document.readyState === "complete") {
       main();
+      window.onresize = function(e) {
+          main();
+      };
       clearInterval(readyTimer);
     }
   }, 10);
