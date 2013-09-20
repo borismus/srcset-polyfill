@@ -800,9 +800,16 @@ var jsUri = Uri;
   var readyTimer = setInterval(function () {
     if (document.readyState === "complete") {
       main();
+
+      var resizeTimer;
       window.onresize = function(e) {
+        clearTimeout(resizeTimer); // some browsers file resize continuously, so wait 500ms
+        resizeTimer = setTimeout(function() {
+          console.log("resize");
           main();
+        }, 500);
       };
+
       clearInterval(readyTimer);
     }
   }, 10);
