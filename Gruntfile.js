@@ -6,7 +6,6 @@ module.exports = function(grunt) {
     concat: {
       dist: {
         src: [
-          'js/libs/*',
           'js/srcset-info.js',
           'js/viewport-info.js',
           'js/main.js'
