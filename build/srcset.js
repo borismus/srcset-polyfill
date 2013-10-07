@@ -808,7 +808,6 @@ var jsUri = Uri;
       window.onresize = function(e) {
         clearTimeout(resizeTimer); // some browsers file resize continuously, so wait 500ms
         resizeTimer = setTimeout(function() {
-          console.log("resize");
           main();
         }, 500);
       };
