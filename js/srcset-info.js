@@ -101,7 +101,7 @@
    * Add an image candidate, unless it's a dupe of something that exists already.
    */
   SrcsetInfo.prototype._addCandidate = function(imageInfo) {
-    for (var j = 0; j < this.imageCandidates.length; j++) {
+    for (var j = 0, len =  this.imageCandidates.length; j < len; j++) {
       var existingCandidate = this.imageCandidates[j];
       if (existingCandidate.x == imageInfo.x &&
           existingCandidate.w == imageInfo.w &&
@@ -119,7 +119,7 @@
     for (var i = 0; i < descriptors.length; i++) {
       var desc = descriptors[i];
       if (desc.length > 0) {
-        var lastChar = desc[desc.length-1];
+        var lastChar = desc.slice(-1); // so crappy browsers understand it as well
         var value = desc.substring(0, desc.length-1);
         var intVal = parseInt(value, 10);
         var floatVal = parseFloat(value);
