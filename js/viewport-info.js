@@ -63,7 +63,7 @@
     // Get the smallest height.
     var smallestHeight = this._getBestCandidateIf(images, function(a, b) { return a.h < b.h; });
     // Remove all candidates with height greater than it.
-    this._removeCandidatesIf(images, function(a, b) { return a.h > smallestWidth.h; });
+    this._removeCandidatesIf(images, function(a, b) { return a.h > smallestHeight.h; });
 
     // Get the smallest pixel density.
     var smallestPxDensity = this._getBestCandidateIf(images, function(a, b) { return a.x < b.x; });
