@@ -1,8 +1,7 @@
 (function(exports) {
 
   function isSrcsetImplemented() {
-    var img = new Image();
-    return 'srcset' in img;
+    return 'srcset' in new Image();
   }
 
   function main() {
