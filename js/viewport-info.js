@@ -1,4 +1,5 @@
 (function(exports) {
+  var SrcsetInfo = require('./srcset-info') || exports.SrcsetInfo;
 
   function ViewportInfo() {
     this.w = null;
@@ -129,6 +130,10 @@
     return bestMatch;
   };
 
+  // Exports
   exports.ViewportInfo = ViewportInfo;
+  if (typeof module !== "undefined" && module !== null) {
+    module.exports = ViewportInfo;
+  }
 
 })(this);

@@ -1,4 +1,6 @@
 (function(exports) {
+  var ViewportInfo = require('./viewport-info.js') || this.ViewportInfo;
+  var SrcsetInfo = require('./srcset-info') || exports.SrcsetInfo;
 
   function isSrcsetImplemented() {
     return 'srcset' in new Image();

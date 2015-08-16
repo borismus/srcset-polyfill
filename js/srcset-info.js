@@ -145,6 +145,11 @@
     this.x = options.x || 1;
   }
 
+
+  // Exports
   exports.SrcsetInfo = SrcsetInfo;
+  if (typeof module !== "undefined" && module !== null) {
+    module.exports = SrcsetInfo;
+  }
 
 })(this);

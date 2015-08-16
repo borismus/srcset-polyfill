@@ -13,7 +13,7 @@
  *
  * Date: Mon Nov 14 20:06:34 2011 -0800
  */
-    
+(function(exports) {
 
 var Query = function (queryString) {
 
@@ -469,5 +469,10 @@ var Uri = function (uriString) {
     };
 };
 
+exports.Query = Query;
+exports.Uri = Uri;
+
 /* add compatibility for users of jsUri <= 1.1.1 */
-var jsUri = Uri;
+exports.jsUri = Uri;
+
+})(this);
