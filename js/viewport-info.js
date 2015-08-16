@@ -1,5 +1,5 @@
-(function(exports) {
-  var SrcsetInfo = require('./srcset-info') || exports.SrcsetInfo;
+(function() {
+  var SrcsetInfo = this.SrcsetInfo || require('./srcset-info');
 
   function ViewportInfo() {
     this.w = null;
@@ -131,9 +131,9 @@
   };
 
   // Exports
-  exports.ViewportInfo = ViewportInfo;
+  this.ViewportInfo = ViewportInfo;
   if (typeof module !== "undefined" && module !== null) {
-    module.exports = ViewportInfo;
+    module.exports = this.ViewportInfo;
   }
 
 })(this);

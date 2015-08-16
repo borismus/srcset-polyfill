@@ -4,15 +4,17 @@ See [the specification][spec] for the reference algorithm.
 
 ## Usage
 
-Use the `srcset` attribute of `<img>` elements. For example:
+Use the `data-srcset` attribute of `<img>` elements. For example:
 
-    <img alt="The Breakfast Combo"
-         src="banner.jpeg"
-         srcset="banner-HD.jpeg 2x, banner-phone.jpeg 100w,
-                 banner-phone-HD.jpeg 100w 2x"/>
-
+```html
+<img alt="The Breakfast Combo"
+  src="160x120.png"
+  data-srcset="320x240.png 320w,640x480 320w 2x, 768x576.png 768w,1536x1152.png 768w 2x, 1024x768.png 1024w,2048x1536.png 1024w 2x, 2048x1536.png 5000w">
+```
 
 Include `build/srcset.min.js` in your page.
+
+
 
 ## Open questions
 
