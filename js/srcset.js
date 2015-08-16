@@ -65,7 +65,7 @@
 
   var srcsetViews = new WeakMap();
   srcset.imgs = srcsetViews;
-  function updateAllSrcset() {
+  function update() {
     // update timestamp
     windowResizedAt = (new Date).getTime();
     viewportInfo.compute();
@@ -81,8 +81,9 @@
       srcsetview.update();
     });
   }
-  window.onresize = updateAllSrcset;
-  updateAllSrcset();
+  window.onresize = update;
+  update();
+  srcset.update = update;
 
   // Exports
   this.srcset = srcset;

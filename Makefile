@@ -1,3 +1,5 @@
+all: build/srcset.js build/srcset.min.js
+
 build/srcset.js: ./node_modules/.bin/browserify $(shell find -L js -name '*.js')
 	./node_modules/.bin/browserify ./js/srcset.js > $@
 
