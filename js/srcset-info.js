@@ -147,4 +147,4 @@
 
   exports.SrcsetInfo = SrcsetInfo;
 
-})(window);
+})(this);
