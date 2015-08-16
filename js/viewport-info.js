@@ -131,4 +131,4 @@
 
   exports.ViewportInfo = ViewportInfo;
 
-})(window);
+})(this);
