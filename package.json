@@ -1,7 +1,7 @@
 {
   "name": "srcset-polyfill",
   "version": "0.1.0",
-  "main": "build/srcset.js",
+  "main": "js/srcset.js",
   "devDependencies": {
     "browserify": "^11.0.1",
     "uglify-js": "^2.4.24"
