@@ -12,9 +12,12 @@ Use the `data-srcset` attribute of `<img>` elements. For example:
   data-srcset="320x240.png 320w,640x480 320w 2x, 768x576.png 768w,1536x1152.png 768w 2x, 1024x768.png 1024w,2048x1536.png 1024w 2x, 2048x1536.png 5000w">
 ```
 
-Include `build/srcset.min.js` in your page.
+Include `build/srcset.min.js` in your page. Then, you'll have a `srcset` object with the following API :
 
+ - `srcset.update()` -- update all images in the page
+ - `srcset.imgs.get(<img>).update()` -- update one image
 
+A `'srcchange'` event will also be triggered when the `src` of an image changes.
 
 ## Open questions
 
