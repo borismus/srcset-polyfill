@@ -1,5 +1,5 @@
 (function() {
-  var ViewportInfo = this.ViewportInfo || require('./viewport-info.js');
+  var ViewportInfo = this.ViewportInfo || require('./viewport-info');
   var SrcsetInfo = this.SrcsetInfo || require('./srcset-info');
   var WeakMap = require('es6-weak-map');
 
