@@ -87,7 +87,7 @@
 
           // Dispatch 'srcchanged'
           setTimeout(function () {
-            document.dispatchEvent(srcchanged);
+            this.el.dispatchEvent(srcchanged);
           }.bind(this), 0);
         }.bind(this));
       }

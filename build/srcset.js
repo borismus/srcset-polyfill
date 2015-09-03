@@ -157,7 +157,7 @@
 
 },{}],2:[function(require,module,exports){
 (function() {
-  var ViewportInfo = this.ViewportInfo || require('./viewport-info.js');
+  var ViewportInfo = this.ViewportInfo || require('./viewport-info');
   var SrcsetInfo = this.SrcsetInfo || require('./srcset-info');
   var WeakMap = require('es6-weak-map');
 
@@ -170,6 +170,7 @@
   var windowResizedAt = (new Date).getTime();
   srcset.windowResizedAt = windowResizedAt;
 
+  // https://gist.github.com/abernier/6461914#imgloaded
   function imgloaded(src, cb) {
     var img = document.createElement('img');
     img.onload = function () {
@@ -178,6 +179,7 @@
     img.src = src;
   }
 
+  // Picked from underscore.js
   function debounce(func, wait, immediate) {
     var timeout, args, context, timestamp, result;
 
@@ -243,7 +245,7 @@
 
           // Dispatch 'srcchanged'
           setTimeout(function () {
-            document.dispatchEvent(srcchanged);
+            this.el.dispatchEvent(srcchanged);
           }.bind(this), 0);
         }.bind(this));
       }
@@ -282,7 +284,7 @@
   }
 })(this);
 
-},{"./srcset-info":1,"./viewport-info.js":3,"es6-weak-map":4}],3:[function(require,module,exports){
+},{"./srcset-info":1,"./viewport-info":3,"es6-weak-map":4}],3:[function(require,module,exports){
 (function() {
   var SrcsetInfo = this.SrcsetInfo || require('./srcset-info');
 
