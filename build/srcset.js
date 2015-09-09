@@ -235,7 +235,8 @@
         // 'srcchanged' event
         var srcchanged = new CustomEvent('srcchanged', {
           previous: this.el.src,
-          actual: bestImageInfo.src
+          actual: bestImageInfo.src,
+          bubbles: true
         });
 
         // Wait the new image is loaded
