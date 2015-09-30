@@ -1,4 +1,10 @@
-# A spec-compatible, unit-tested polyfill for `<img srcset>`
+# WARNING: This project is no longer maintained. 
+
+Please use <https://github.com/scottjehl/picturefill> instead.
+
+-----
+
+## A spec-compatible, unit-tested polyfill for `<img srcset>`
 
 See [the specification][spec] for the reference algorithm.
 
