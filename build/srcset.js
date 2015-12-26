@@ -232,13 +232,26 @@
       if (this.srcsetInfo) {
         var bestImageInfo = viewportInfo.getBestImage(this.srcsetInfo);
 
+        //
+        // 'srcchanging' event
+        //
+
+        var srcchanging = new CustomEvent('srcchanging', {
+          previous: this.el.src,
+          actual: bestImageInfo.src,
+          bubbles: true
+        });
+        this.el.dispatchEvent(srcchanging);
+
+        //
         // 'srcchanged' event
+        //
+        
         var srcchanged = new CustomEvent('srcchanged', {
           previous: this.el.src,
           actual: bestImageInfo.src,
           bubbles: true
         });
-
         // Wait the new image is loaded
         imgloaded(bestImageInfo.src, function () {
           // Change src
@@ -264,7 +277,7 @@
     viewportInfo.compute();
 
     // Update every images
-    Array.prototype.forEach.call(document.querySelectorAll('img[data-srcset]'), function (el) {
+    [].forEach.call(document.querySelectorAll('img[data-srcset]'), function (el) {
       var srcsetview = srcsetViews.get(el);
       if (!srcsetview) {
         srcsetview = new SrcsetView(el);
