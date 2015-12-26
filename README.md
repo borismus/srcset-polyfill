@@ -17,7 +17,13 @@ Include `build/srcset.min.js` in your page. Then, you'll have a `srcset` object 
  - `srcset.update()` -- update all images in the page
  - `srcset.imgs.get(<img>).update()` -- update one image
 
-A `'srcchange'` event will also be triggered when the `src` of an image changes.
+A `'srcchange'` event will also be triggered when the `src` of an image changes :
+
+```javascript
+myimg.addEventListener('srcchanged', function (data) {
+	console.log("img with previous src %s was changed to %s", data.previous, data.actual)
+}, false);
+```
 
 ## Open questions
 
