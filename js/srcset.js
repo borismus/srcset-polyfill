@@ -2,7 +2,6 @@
   var ViewportInfo = this.ViewportInfo || require('./viewport-info');
   var SrcsetInfo = this.SrcsetInfo || require('./srcset-info');
   var WeakMap = require('weak-map');
-  console.log('tataa');
 
   var srcset = {};
 
@@ -83,7 +82,7 @@
     if (hasMO) {
       this.mo = new MutationObserver(function (mutations) {
         mutations.forEach(function (mutation) {
-          console.log(mutation);
+          //console.log(mutation);
 
           if (mutation.target === this.el && mutation.type === 'attributes') {
             if (mutation.attributeName === 'src' || mutation.attributeName === 'data-srcset') {
@@ -175,7 +174,6 @@
 
     // Update every images
     [].forEach.call(document.querySelectorAll('img[data-srcset]'), function (el) {
-      console.log('tata', el);
       var srcsetview = srcsetViews.get(el);
       if (!srcsetview) {
         srcsetview = new SrcsetView(el);
