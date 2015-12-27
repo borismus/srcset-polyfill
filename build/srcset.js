@@ -156,10 +156,11 @@
 })(this);
 
 },{}],2:[function(require,module,exports){
-(function() {
+(function () {
   var ViewportInfo = this.ViewportInfo || require('./viewport-info');
   var SrcsetInfo = this.SrcsetInfo || require('./srcset-info');
-  var WeakMap = require('es6-weak-map');
+  var WeakMap = require('weak-map');
+  console.log('tataa');
 
   var srcset = {};
 
@@ -212,13 +213,58 @@
     };
   }
 
+  // https://gist.github.com/stucox/5231211
+  var hasMO = (function () {
+    var prefixes = ['WebKit', 'Moz', 'O', 'Ms', ''];
+
+    for (var i=0; i < prefixes.length; i++) {
+      if ((prefixes[i] + 'MutationObserver') in window) {
+        return window[prefixes[i] + 'MutationObserver'];
+      }
+    }
+
+    return false;
+  }());
+
   function SrcsetView(el) {
     this.el = el;
 
-    this.srcsetInfo = new SrcsetInfo({
+    this.srcsetInfo = new SrcsetInfo(this.el, {
       src: this.el.src,
       srcset: this.el.dataset.srcset
     });
+
+    //
+    // Observe data-srcset attributes mutations to keep this.srcsetInfo up-to-date (if available)
+    //
+
+    if (hasMO) {
+      this.mo = new MutationObserver(function (mutations) {
+        mutations.forEach(function (mutation) {
+          console.log(mutation);
+
+          if (mutation.target === this.el && mutation.type === 'attributes') {
+            if (mutation.attributeName === 'src') {
+              this.srcsetInfo.srcValue = mutation.target.src;
+            }
+
+            if (mutation.attributeName === 'data-srcset') {
+              this.srcsetInfo.imageCandidates = []; // reset imageCandidates
+              this.srcsetInfo.srcsetValue = mutation.target.dataset.srcset;
+
+              this.srcsetInfo._parse(this.srcsetInfo.srcsetValue);
+              if (!this.srcsetInfo.isValid) {
+                console.error('Error: ' + this.srcsetInfo.error);
+              }
+
+              this.update({force: true});
+            }
+          }
+        }.bind(this));    
+      }.bind(this));
+       
+      this.mo.observe(this.el, {attributes: true});
+    }
   }
   SrcsetView.prototype.update = function (options) {
     options || (options = {});
@@ -232,30 +278,35 @@
       if (this.srcsetInfo) {
         var bestImageInfo = viewportInfo.getBestImage(this.srcsetInfo);
 
+        var oldsrc = this.el.src;
+        var newsrc = bestImageInfo.src;
+
+        if (newsrc === oldsrc) return false; // same, no need to update
+
+        //console.log('updating src', this.el, oldsrc, newsrc);
+
+        var eventdata = {
+          previous: oldsrc,
+          actual: newsrc,
+          bubbles: true
+        };
+
         //
         // 'srcchanging' event
         //
 
-        var srcchanging = new CustomEvent('srcchanging', {
-          previous: this.el.src,
-          actual: bestImageInfo.src,
-          bubbles: true
-        });
+        var srcchanging = new CustomEvent('srcchanging', eventdata);
         this.el.dispatchEvent(srcchanging);
 
         //
         // 'srcchanged' event
         //
         
-        var srcchanged = new CustomEvent('srcchanged', {
-          previous: this.el.src,
-          actual: bestImageInfo.src,
-          bubbles: true
-        });
+        var srcchanged = new CustomEvent('srcchanged', eventdata);
         // Wait the new image is loaded
-        imgloaded(bestImageInfo.src, function () {
+        imgloaded(newsrc, function () {
           // Change src
-          this.el.src = bestImageInfo.src;
+          this.el.src = newsrc;
 
           // Dispatch 'srcchanged'
           setTimeout(function () {
@@ -278,6 +329,7 @@
 
     // Update every images
     [].forEach.call(document.querySelectorAll('img[data-srcset]'), function (el) {
+      console.log('tata', el);
       var srcsetview = srcsetViews.get(el);
       if (!srcsetview) {
         srcsetview = new SrcsetView(el);
@@ -298,7 +350,7 @@
   }
 })(this);
 
-},{"./srcset-info":1,"./viewport-info":3,"es6-weak-map":4}],3:[function(require,module,exports){
+},{"./srcset-info":1,"./viewport-info":3,"weak-map":4}],3:[function(require,module,exports){
 (function() {
   var SrcsetInfo = this.SrcsetInfo || require('./srcset-info');
 
@@ -440,968 +492,690 @@
 })(this);
 
 },{"./srcset-info":1}],4:[function(require,module,exports){
-'use strict';
-
-module.exports = require('./is-implemented')() ? WeakMap : require('./polyfill');
-
-},{"./is-implemented":5,"./polyfill":47}],5:[function(require,module,exports){
-'use strict';
-
-module.exports = function () {
-	var weakMap, x;
-	if (typeof WeakMap !== 'function') return false;
-	if (String(WeakMap.prototype) !== '[object WeakMap]') return false;
-	try {
-		// WebKit doesn't support arguments and crashes
-		weakMap = new WeakMap([[x = {}, 'one'], [{}, 'two'], [{}, 'three']]);
-	} catch (e) {
-		return false;
-	}
-	if (typeof weakMap.set !== 'function') return false;
-	if (weakMap.set({}, 1) !== weakMap) return false;
-	if (typeof weakMap.delete !== 'function') return false;
-	if (typeof weakMap.has !== 'function') return false;
-	if (weakMap.get(x) !== 'one') return false;
-
-	return true;
-};
-
-},{}],6:[function(require,module,exports){
-// Exports true if environment provides native `WeakMap` implementation, whatever that is.
-
-'use strict';
-
-module.exports = (function () {
-	if (typeof WeakMap !== 'function') return false;
-	return (Object.prototype.toString.call(new WeakMap()) === '[object WeakMap]');
-}());
-
-},{}],7:[function(require,module,exports){
-'use strict';
-
-var copy       = require('es5-ext/object/copy')
-  , map        = require('es5-ext/object/map')
-  , callable   = require('es5-ext/object/valid-callable')
-  , validValue = require('es5-ext/object/valid-value')
-
-  , bind = Function.prototype.bind, defineProperty = Object.defineProperty
-  , hasOwnProperty = Object.prototype.hasOwnProperty
-  , define;
-
-define = function (name, desc, bindTo) {
-	var value = validValue(desc) && callable(desc.value), dgs;
-	dgs = copy(desc);
-	delete dgs.writable;
-	delete dgs.value;
-	dgs.get = function () {
-		if (hasOwnProperty.call(this, name)) return value;
-		desc.value = bind.call(value, (bindTo == null) ? this : this[bindTo]);
-		defineProperty(this, name, desc);
-		return this[name];
-	};
-	return dgs;
-};
-
-module.exports = function (props/*, bindTo*/) {
-	var bindTo = arguments[1];
-	return map(props, function (desc, name) {
-		return define(name, desc, bindTo);
-	});
-};
-
-},{"es5-ext/object/copy":14,"es5-ext/object/map":22,"es5-ext/object/valid-callable":27,"es5-ext/object/valid-value":29}],8:[function(require,module,exports){
-'use strict';
-
-var assign        = require('es5-ext/object/assign')
-  , normalizeOpts = require('es5-ext/object/normalize-options')
-  , isCallable    = require('es5-ext/object/is-callable')
-  , contains      = require('es5-ext/string/#/contains')
-
-  , d;
-
-d = module.exports = function (dscr, value/*, options*/) {
-	var c, e, w, options, desc;
-	if ((arguments.length < 2) || (typeof dscr !== 'string')) {
-		options = value;
-		value = dscr;
-		dscr = null;
-	} else {
-		options = arguments[2];
-	}
-	if (dscr == null) {
-		c = w = true;
-		e = false;
-	} else {
-		c = contains.call(dscr, 'c');
-		e = contains.call(dscr, 'e');
-		w = contains.call(dscr, 'w');
-	}
-
-	desc = { value: value, configurable: c, enumerable: e, writable: w };
-	return !options ? desc : assign(normalizeOpts(options), desc);
-};
-
-d.gs = function (dscr, get, set/*, options*/) {
-	var c, e, options, desc;
-	if (typeof dscr !== 'string') {
-		options = set;
-		set = get;
-		get = dscr;
-		dscr = null;
-	} else {
-		options = arguments[3];
-	}
-	if (get == null) {
-		get = undefined;
-	} else if (!isCallable(get)) {
-		options = get;
-		get = set = undefined;
-	} else if (set == null) {
-		set = undefined;
-	} else if (!isCallable(set)) {
-		options = set;
-		set = undefined;
-	}
-	if (dscr == null) {
-		c = true;
-		e = false;
-	} else {
-		c = contains.call(dscr, 'c');
-		e = contains.call(dscr, 'e');
-	}
-
-	desc = { get: get, set: set, configurable: c, enumerable: e };
-	return !options ? desc : assign(normalizeOpts(options), desc);
-};
-
-},{"es5-ext/object/assign":11,"es5-ext/object/is-callable":17,"es5-ext/object/normalize-options":23,"es5-ext/string/#/contains":30}],9:[function(require,module,exports){
-// Inspired by Google Closure:
-// http://closure-library.googlecode.com/svn/docs/
-// closure_goog_array_array.js.html#goog.array.clear
-
-'use strict';
-
-var value = require('../../object/valid-value');
-
-module.exports = function () {
-	value(this).length = 0;
-	return this;
-};
-
-},{"../../object/valid-value":29}],10:[function(require,module,exports){
-// Internal method, used by iteration functions.
-// Calls a function for each key-value pair found in object
-// Optionally takes compareFn to iterate object in specific order
-
-'use strict';
-
-var isCallable = require('./is-callable')
-  , callable   = require('./valid-callable')
-  , value      = require('./valid-value')
-
-  , call = Function.prototype.call, keys = Object.keys
-  , propertyIsEnumerable = Object.prototype.propertyIsEnumerable;
-
-module.exports = function (method, defVal) {
-	return function (obj, cb/*, thisArg, compareFn*/) {
-		var list, thisArg = arguments[2], compareFn = arguments[3];
-		obj = Object(value(obj));
-		callable(cb);
-
-		list = keys(obj);
-		if (compareFn) {
-			list.sort(isCallable(compareFn) ? compareFn.bind(obj) : undefined);
-		}
-		return list[method](function (key, index) {
-			if (!propertyIsEnumerable.call(obj, key)) return defVal;
-			return call.call(cb, thisArg, obj[key], key, obj, index);
-		});
-	};
-};
-
-},{"./is-callable":17,"./valid-callable":27,"./valid-value":29}],11:[function(require,module,exports){
-'use strict';
-
-module.exports = require('./is-implemented')()
-	? Object.assign
-	: require('./shim');
-
-},{"./is-implemented":12,"./shim":13}],12:[function(require,module,exports){
-'use strict';
-
-module.exports = function () {
-	var assign = Object.assign, obj;
-	if (typeof assign !== 'function') return false;
-	obj = { foo: 'raz' };
-	assign(obj, { bar: 'dwa' }, { trzy: 'trzy' });
-	return (obj.foo + obj.bar + obj.trzy) === 'razdwatrzy';
-};
-
-},{}],13:[function(require,module,exports){
-'use strict';
-
-var keys  = require('../keys')
-  , value = require('../valid-value')
-
-  , max = Math.max;
-
-module.exports = function (dest, src/*, …srcn*/) {
-	var error, i, l = max(arguments.length, 2), assign;
-	dest = Object(value(dest));
-	assign = function (key) {
-		try { dest[key] = src[key]; } catch (e) {
-			if (!error) error = e;
-		}
-	};
-	for (i = 1; i < l; ++i) {
-		src = arguments[i];
-		keys(src).forEach(assign);
-	}
-	if (error !== undefined) throw error;
-	return dest;
-};
-
-},{"../keys":19,"../valid-value":29}],14:[function(require,module,exports){
-'use strict';
-
-var assign = require('./assign')
-  , value  = require('./valid-value');
-
-module.exports = function (obj) {
-	var copy = Object(value(obj));
-	if (copy !== obj) return copy;
-	return assign({}, obj);
-};
-
-},{"./assign":11,"./valid-value":29}],15:[function(require,module,exports){
-// Workaround for http://code.google.com/p/v8/issues/detail?id=2804
-
-'use strict';
-
-var create = Object.create, shim;
-
-if (!require('./set-prototype-of/is-implemented')()) {
-	shim = require('./set-prototype-of/shim');
-}
-
-module.exports = (function () {
-	var nullObject, props, desc;
-	if (!shim) return create;
-	if (shim.level !== 1) return create;
-
-	nullObject = {};
-	props = {};
-	desc = { configurable: false, enumerable: false, writable: true,
-		value: undefined };
-	Object.getOwnPropertyNames(Object.prototype).forEach(function (name) {
-		if (name === '__proto__') {
-			props[name] = { configurable: true, enumerable: false, writable: true,
-				value: undefined };
-			return;
-		}
-		props[name] = desc;
-	});
-	Object.defineProperties(nullObject, props);
-
-	Object.defineProperty(shim, 'nullPolyfill', { configurable: false,
-		enumerable: false, writable: false, value: nullObject });
-
-	return function (prototype, props) {
-		return create((prototype === null) ? nullObject : prototype, props);
-	};
-}());
-
-},{"./set-prototype-of/is-implemented":25,"./set-prototype-of/shim":26}],16:[function(require,module,exports){
-'use strict';
-
-module.exports = require('./_iterate')('forEach');
-
-},{"./_iterate":10}],17:[function(require,module,exports){
-// Deprecated
-
-'use strict';
-
-module.exports = function (obj) { return typeof obj === 'function'; };
-
-},{}],18:[function(require,module,exports){
-'use strict';
-
-var map = { function: true, object: true };
-
-module.exports = function (x) {
-	return ((x != null) && map[typeof x]) || false;
-};
-
-},{}],19:[function(require,module,exports){
-'use strict';
-
-module.exports = require('./is-implemented')()
-	? Object.keys
-	: require('./shim');
-
-},{"./is-implemented":20,"./shim":21}],20:[function(require,module,exports){
-'use strict';
-
-module.exports = function () {
-	try {
-		Object.keys('primitive');
-		return true;
-	} catch (e) { return false; }
-};
-
-},{}],21:[function(require,module,exports){
-'use strict';
-
-var keys = Object.keys;
-
-module.exports = function (object) {
-	return keys(object == null ? object : Object(object));
-};
-
-},{}],22:[function(require,module,exports){
-'use strict';
-
-var callable = require('./valid-callable')
-  , forEach  = require('./for-each')
-
-  , call = Function.prototype.call;
-
-module.exports = function (obj, cb/*, thisArg*/) {
-	var o = {}, thisArg = arguments[2];
-	callable(cb);
-	forEach(obj, function (value, key, obj, index) {
-		o[key] = call.call(cb, thisArg, value, key, obj, index);
-	});
-	return o;
-};
-
-},{"./for-each":16,"./valid-callable":27}],23:[function(require,module,exports){
-'use strict';
-
-var forEach = Array.prototype.forEach, create = Object.create;
-
-var process = function (src, obj) {
-	var key;
-	for (key in src) obj[key] = src[key];
-};
-
-module.exports = function (options/*, …options*/) {
-	var result = create(null);
-	forEach.call(arguments, function (options) {
-		if (options == null) return;
-		process(Object(options), result);
-	});
-	return result;
-};
-
-},{}],24:[function(require,module,exports){
-'use strict';
-
-module.exports = require('./is-implemented')()
-	? Object.setPrototypeOf
-	: require('./shim');
-
-},{"./is-implemented":25,"./shim":26}],25:[function(require,module,exports){
-'use strict';
-
-var create = Object.create, getPrototypeOf = Object.getPrototypeOf
-  , x = {};
-
-module.exports = function (/*customCreate*/) {
-	var setPrototypeOf = Object.setPrototypeOf
-	  , customCreate = arguments[0] || create;
-	if (typeof setPrototypeOf !== 'function') return false;
-	return getPrototypeOf(setPrototypeOf(customCreate(null), x)) === x;
-};
-
-},{}],26:[function(require,module,exports){
-// Big thanks to @WebReflection for sorting this out
-// https://gist.github.com/WebReflection/5593554
-
-'use strict';
-
-var isObject      = require('../is-object')
-  , value         = require('../valid-value')
-
-  , isPrototypeOf = Object.prototype.isPrototypeOf
-  , defineProperty = Object.defineProperty
-  , nullDesc = { configurable: true, enumerable: false, writable: true,
-		value: undefined }
-  , validate;
-
-validate = function (obj, prototype) {
-	value(obj);
-	if ((prototype === null) || isObject(prototype)) return obj;
-	throw new TypeError('Prototype must be null or an object');
-};
-
-module.exports = (function (status) {
-	var fn, set;
-	if (!status) return null;
-	if (status.level === 2) {
-		if (status.set) {
-			set = status.set;
-			fn = function (obj, prototype) {
-				set.call(validate(obj, prototype), prototype);
-				return obj;
-			};
-		} else {
-			fn = function (obj, prototype) {
-				validate(obj, prototype).__proto__ = prototype;
-				return obj;
-			};
-		}
-	} else {
-		fn = function self(obj, prototype) {
-			var isNullBase;
-			validate(obj, prototype);
-			isNullBase = isPrototypeOf.call(self.nullPolyfill, obj);
-			if (isNullBase) delete self.nullPolyfill.__proto__;
-			if (prototype === null) prototype = self.nullPolyfill;
-			obj.__proto__ = prototype;
-			if (isNullBase) defineProperty(self.nullPolyfill, '__proto__', nullDesc);
-			return obj;
-		};
-	}
-	return Object.defineProperty(fn, 'level', { configurable: false,
-		enumerable: false, writable: false, value: status.level });
-}((function () {
-	var x = Object.create(null), y = {}, set
-	  , desc = Object.getOwnPropertyDescriptor(Object.prototype, '__proto__');
-
-	if (desc) {
-		try {
-			set = desc.set; // Opera crashes at this point
-			set.call(x, y);
-		} catch (ignore) { }
-		if (Object.getPrototypeOf(x) === y) return { set: set, level: 2 };
-	}
-
-	x.__proto__ = y;
-	if (Object.getPrototypeOf(x) === y) return { level: 2 };
-
-	x = {};
-	x.__proto__ = y;
-	if (Object.getPrototypeOf(x) === y) return { level: 1 };
-
-	return false;
-}())));
-
-require('../create');
-
-},{"../create":15,"../is-object":18,"../valid-value":29}],27:[function(require,module,exports){
-'use strict';
-
-module.exports = function (fn) {
-	if (typeof fn !== 'function') throw new TypeError(fn + " is not a function");
-	return fn;
-};
-
-},{}],28:[function(require,module,exports){
-'use strict';
-
-var isObject = require('./is-object');
-
-module.exports = function (value) {
-	if (!isObject(value)) throw new TypeError(value + " is not an Object");
-	return value;
-};
-
-},{"./is-object":18}],29:[function(require,module,exports){
-'use strict';
-
-module.exports = function (value) {
-	if (value == null) throw new TypeError("Cannot use null or undefined");
-	return value;
-};
-
-},{}],30:[function(require,module,exports){
-'use strict';
-
-module.exports = require('./is-implemented')()
-	? String.prototype.contains
-	: require('./shim');
-
-},{"./is-implemented":31,"./shim":32}],31:[function(require,module,exports){
-'use strict';
-
-var str = 'razdwatrzy';
-
-module.exports = function () {
-	if (typeof str.contains !== 'function') return false;
-	return ((str.contains('dwa') === true) && (str.contains('foo') === false));
-};
-
-},{}],32:[function(require,module,exports){
-'use strict';
-
-var indexOf = String.prototype.indexOf;
-
-module.exports = function (searchString/*, position*/) {
-	return indexOf.call(this, searchString, arguments[1]) > -1;
-};
-
-},{}],33:[function(require,module,exports){
-'use strict';
-
-var toString = Object.prototype.toString
-
-  , id = toString.call('');
-
-module.exports = function (x) {
-	return (typeof x === 'string') || (x && (typeof x === 'object') &&
-		((x instanceof String) || (toString.call(x) === id))) || false;
-};
-
-},{}],34:[function(require,module,exports){
-'use strict';
-
-var generated = Object.create(null)
-
-  , random = Math.random;
-
-module.exports = function () {
-	var str;
-	do { str = random().toString(36).slice(2); } while (generated[str]);
-	return str;
-};
-
-},{}],35:[function(require,module,exports){
-'use strict';
-
-var setPrototypeOf = require('es5-ext/object/set-prototype-of')
-  , contains       = require('es5-ext/string/#/contains')
-  , d              = require('d')
-  , Iterator       = require('./')
-
-  , defineProperty = Object.defineProperty
-  , ArrayIterator;
-
-ArrayIterator = module.exports = function (arr, kind) {
-	if (!(this instanceof ArrayIterator)) return new ArrayIterator(arr, kind);
-	Iterator.call(this, arr);
-	if (!kind) kind = 'value';
-	else if (contains.call(kind, 'key+value')) kind = 'key+value';
-	else if (contains.call(kind, 'key')) kind = 'key';
-	else kind = 'value';
-	defineProperty(this, '__kind__', d('', kind));
-};
-if (setPrototypeOf) setPrototypeOf(ArrayIterator, Iterator);
-
-ArrayIterator.prototype = Object.create(Iterator.prototype, {
-	constructor: d(ArrayIterator),
-	_resolve: d(function (i) {
-		if (this.__kind__ === 'value') return this.__list__[i];
-		if (this.__kind__ === 'key+value') return [i, this.__list__[i]];
-		return i;
-	}),
-	toString: d(function () { return '[object Array Iterator]'; })
-});
-
-},{"./":38,"d":8,"es5-ext/object/set-prototype-of":24,"es5-ext/string/#/contains":30}],36:[function(require,module,exports){
-'use strict';
-
-var callable = require('es5-ext/object/valid-callable')
-  , isString = require('es5-ext/string/is-string')
-  , get      = require('./get')
-
-  , isArray = Array.isArray, call = Function.prototype.call;
-
-module.exports = function (iterable, cb/*, thisArg*/) {
-	var mode, thisArg = arguments[2], result, doBreak, broken, i, l, char, code;
-	if (isArray(iterable)) mode = 'array';
-	else if (isString(iterable)) mode = 'string';
-	else iterable = get(iterable);
-
-	callable(cb);
-	doBreak = function () { broken = true; };
-	if (mode === 'array') {
-		iterable.some(function (value) {
-			call.call(cb, thisArg, value, doBreak);
-			if (broken) return true;
-		});
-		return;
-	}
-	if (mode === 'string') {
-		l = iterable.length;
-		for (i = 0; i < l; ++i) {
-			char = iterable[i];
-			if ((i + 1) < l) {
-				code = char.charCodeAt(0);
-				if ((code >= 0xD800) && (code <= 0xDBFF)) char += iterable[++i];
-			}
-			call.call(cb, thisArg, char, doBreak);
-			if (broken) break;
-		}
-		return;
-	}
-	result = iterable.next();
-
-	while (!result.done) {
-		call.call(cb, thisArg, result.value, doBreak);
-		if (broken) return;
-		result = iterable.next();
-	}
-};
-
-},{"./get":37,"es5-ext/object/valid-callable":27,"es5-ext/string/is-string":33}],37:[function(require,module,exports){
-'use strict';
-
-var isString = require('es5-ext/string/is-string')
-  , ArrayIterator  = require('./array')
-  , StringIterator = require('./string')
-  , iterable       = require('./valid-iterable')
-  , iteratorSymbol = require('es6-symbol').iterator;
-
-module.exports = function (obj) {
-	if (typeof iterable(obj)[iteratorSymbol] === 'function') return obj[iteratorSymbol]();
-	if (isString(obj)) return new StringIterator(obj);
-	return new ArrayIterator(obj);
-};
-
-},{"./array":35,"./string":40,"./valid-iterable":41,"es5-ext/string/is-string":33,"es6-symbol":42}],38:[function(require,module,exports){
-'use strict';
-
-var clear    = require('es5-ext/array/#/clear')
-  , assign   = require('es5-ext/object/assign')
-  , callable = require('es5-ext/object/valid-callable')
-  , value    = require('es5-ext/object/valid-value')
-  , d        = require('d')
-  , autoBind = require('d/auto-bind')
-  , Symbol   = require('es6-symbol')
-
-  , defineProperty = Object.defineProperty
-  , defineProperties = Object.defineProperties
-  , Iterator;
-
-module.exports = Iterator = function (list, context) {
-	if (!(this instanceof Iterator)) return new Iterator(list, context);
-	defineProperties(this, {
-		__list__: d('w', value(list)),
-		__context__: d('w', context),
-		__nextIndex__: d('w', 0)
-	});
-	if (!context) return;
-	callable(context.on);
-	context.on('_add', this._onAdd);
-	context.on('_delete', this._onDelete);
-	context.on('_clear', this._onClear);
-};
-
-defineProperties(Iterator.prototype, assign({
-	constructor: d(Iterator),
-	_next: d(function () {
-		var i;
-		if (!this.__list__) return;
-		if (this.__redo__) {
-			i = this.__redo__.shift();
-			if (i !== undefined) return i;
-		}
-		if (this.__nextIndex__ < this.__list__.length) return this.__nextIndex__++;
-		this._unBind();
-	}),
-	next: d(function () { return this._createResult(this._next()); }),
-	_createResult: d(function (i) {
-		if (i === undefined) return { done: true, value: undefined };
-		return { done: false, value: this._resolve(i) };
-	}),
-	_resolve: d(function (i) { return this.__list__[i]; }),
-	_unBind: d(function () {
-		this.__list__ = null;
-		delete this.__redo__;
-		if (!this.__context__) return;
-		this.__context__.off('_add', this._onAdd);
-		this.__context__.off('_delete', this._onDelete);
-		this.__context__.off('_clear', this._onClear);
-		this.__context__ = null;
-	}),
-	toString: d(function () { return '[object Iterator]'; })
-}, autoBind({
-	_onAdd: d(function (index) {
-		if (index >= this.__nextIndex__) return;
-		++this.__nextIndex__;
-		if (!this.__redo__) {
-			defineProperty(this, '__redo__', d('c', [index]));
-			return;
-		}
-		this.__redo__.forEach(function (redo, i) {
-			if (redo >= index) this.__redo__[i] = ++redo;
-		}, this);
-		this.__redo__.push(index);
-	}),
-	_onDelete: d(function (index) {
-		var i;
-		if (index >= this.__nextIndex__) return;
-		--this.__nextIndex__;
-		if (!this.__redo__) return;
-		i = this.__redo__.indexOf(index);
-		if (i !== -1) this.__redo__.splice(i, 1);
-		this.__redo__.forEach(function (redo, i) {
-			if (redo > index) this.__redo__[i] = --redo;
-		}, this);
-	}),
-	_onClear: d(function () {
-		if (this.__redo__) clear.call(this.__redo__);
-		this.__nextIndex__ = 0;
-	})
-})));
-
-defineProperty(Iterator.prototype, Symbol.iterator, d(function () {
-	return this;
-}));
-defineProperty(Iterator.prototype, Symbol.toStringTag, d('', 'Iterator'));
-
-},{"d":8,"d/auto-bind":7,"es5-ext/array/#/clear":9,"es5-ext/object/assign":11,"es5-ext/object/valid-callable":27,"es5-ext/object/valid-value":29,"es6-symbol":42}],39:[function(require,module,exports){
-'use strict';
-
-var isString       = require('es5-ext/string/is-string')
-  , iteratorSymbol = require('es6-symbol').iterator
-
-  , isArray = Array.isArray;
-
-module.exports = function (value) {
-	if (value == null) return false;
-	if (isArray(value)) return true;
-	if (isString(value)) return true;
-	return (typeof value[iteratorSymbol] === 'function');
-};
-
-},{"es5-ext/string/is-string":33,"es6-symbol":42}],40:[function(require,module,exports){
-// Thanks @mathiasbynens
-// http://mathiasbynens.be/notes/javascript-unicode#iterating-over-symbols
-
-'use strict';
-
-var setPrototypeOf = require('es5-ext/object/set-prototype-of')
-  , d              = require('d')
-  , Iterator       = require('./')
-
-  , defineProperty = Object.defineProperty
-  , StringIterator;
-
-StringIterator = module.exports = function (str) {
-	if (!(this instanceof StringIterator)) return new StringIterator(str);
-	str = String(str);
-	Iterator.call(this, str);
-	defineProperty(this, '__length__', d('', str.length));
-
-};
-if (setPrototypeOf) setPrototypeOf(StringIterator, Iterator);
-
-StringIterator.prototype = Object.create(Iterator.prototype, {
-	constructor: d(StringIterator),
-	_next: d(function () {
-		if (!this.__list__) return;
-		if (this.__nextIndex__ < this.__length__) return this.__nextIndex__++;
-		this._unBind();
-	}),
-	_resolve: d(function (i) {
-		var char = this.__list__[i], code;
-		if (this.__nextIndex__ === this.__length__) return char;
-		code = char.charCodeAt(0);
-		if ((code >= 0xD800) && (code <= 0xDBFF)) return char + this.__list__[this.__nextIndex__++];
-		return char;
-	}),
-	toString: d(function () { return '[object String Iterator]'; })
-});
-
-},{"./":38,"d":8,"es5-ext/object/set-prototype-of":24}],41:[function(require,module,exports){
-'use strict';
-
-var isIterable = require('./is-iterable');
-
-module.exports = function (value) {
-	if (!isIterable(value)) throw new TypeError(value + " is not iterable");
-	return value;
-};
-
-},{"./is-iterable":39}],42:[function(require,module,exports){
-'use strict';
-
-module.exports = require('./is-implemented')() ? Symbol : require('./polyfill');
-
-},{"./is-implemented":43,"./polyfill":45}],43:[function(require,module,exports){
-'use strict';
-
-module.exports = function () {
-	var symbol;
-	if (typeof Symbol !== 'function') return false;
-	symbol = Symbol('test symbol');
-	try { String(symbol); } catch (e) { return false; }
-	if (typeof Symbol.iterator === 'symbol') return true;
-
-	// Return 'true' for polyfills
-	if (typeof Symbol.isConcatSpreadable !== 'object') return false;
-	if (typeof Symbol.iterator !== 'object') return false;
-	if (typeof Symbol.toPrimitive !== 'object') return false;
-	if (typeof Symbol.toStringTag !== 'object') return false;
-	if (typeof Symbol.unscopables !== 'object') return false;
-
-	return true;
-};
-
-},{}],44:[function(require,module,exports){
-'use strict';
-
-module.exports = function (x) {
-	return (x && ((typeof x === 'symbol') || (x['@@toStringTag'] === 'Symbol'))) || false;
-};
-
-},{}],45:[function(require,module,exports){
-'use strict';
-
-var d              = require('d')
-  , validateSymbol = require('./validate-symbol')
-
-  , create = Object.create, defineProperties = Object.defineProperties
-  , defineProperty = Object.defineProperty, objPrototype = Object.prototype
-  , Symbol, HiddenSymbol, globalSymbols = create(null);
-
-var generateName = (function () {
-	var created = create(null);
-	return function (desc) {
-		var postfix = 0, name;
-		while (created[desc + (postfix || '')]) ++postfix;
-		desc += (postfix || '');
-		created[desc] = true;
-		name = '@@' + desc;
-		defineProperty(objPrototype, name, d.gs(null, function (value) {
-			defineProperty(this, name, d(value));
-		}));
-		return name;
-	};
-}());
-
-HiddenSymbol = function Symbol(description) {
-	if (this instanceof HiddenSymbol) throw new TypeError('TypeError: Symbol is not a constructor');
-	return Symbol(description);
-};
-module.exports = Symbol = function Symbol(description) {
-	var symbol;
-	if (this instanceof Symbol) throw new TypeError('TypeError: Symbol is not a constructor');
-	symbol = create(HiddenSymbol.prototype);
-	description = (description === undefined ? '' : String(description));
-	return defineProperties(symbol, {
-		__description__: d('', description),
-		__name__: d('', generateName(description))
-	});
-};
-defineProperties(Symbol, {
-	for: d(function (key) {
-		if (globalSymbols[key]) return globalSymbols[key];
-		return (globalSymbols[key] = Symbol(String(key)));
-	}),
-	keyFor: d(function (s) {
-		var key;
-		validateSymbol(s);
-		for (key in globalSymbols) if (globalSymbols[key] === s) return key;
-	}),
-	hasInstance: d('', Symbol('hasInstance')),
-	isConcatSpreadable: d('', Symbol('isConcatSpreadable')),
-	iterator: d('', Symbol('iterator')),
-	match: d('', Symbol('match')),
-	replace: d('', Symbol('replace')),
-	search: d('', Symbol('search')),
-	species: d('', Symbol('species')),
-	split: d('', Symbol('split')),
-	toPrimitive: d('', Symbol('toPrimitive')),
-	toStringTag: d('', Symbol('toStringTag')),
-	unscopables: d('', Symbol('unscopables'))
-});
-defineProperties(HiddenSymbol.prototype, {
-	constructor: d(Symbol),
-	toString: d('', function () { return this.__name__; })
-});
-
-defineProperties(Symbol.prototype, {
-	toString: d(function () { return 'Symbol (' + validateSymbol(this).__description__ + ')'; }),
-	valueOf: d(function () { return validateSymbol(this); })
-});
-defineProperty(Symbol.prototype, Symbol.toPrimitive, d('',
-	function () { return validateSymbol(this); }));
-defineProperty(Symbol.prototype, Symbol.toStringTag, d('c', 'Symbol'));
-
-defineProperty(HiddenSymbol.prototype, Symbol.toPrimitive,
-	d('c', Symbol.prototype[Symbol.toPrimitive]));
-defineProperty(HiddenSymbol.prototype, Symbol.toStringTag,
-	d('c', Symbol.prototype[Symbol.toStringTag]));
-
-},{"./validate-symbol":46,"d":8}],46:[function(require,module,exports){
-'use strict';
-
-var isSymbol = require('./is-symbol');
-
-module.exports = function (value) {
-	if (!isSymbol(value)) throw new TypeError(value + " is not a symbol");
-	return value;
-};
-
-},{"./is-symbol":44}],47:[function(require,module,exports){
-'use strict';
-
-var setPrototypeOf    = require('es5-ext/object/set-prototype-of')
-  , object            = require('es5-ext/object/valid-object')
-  , value             = require('es5-ext/object/valid-value')
-  , randomUniq        = require('es5-ext/string/random-uniq')
-  , d                 = require('d')
-  , getIterator       = require('es6-iterator/get')
-  , forOf             = require('es6-iterator/for-of')
-  , toStringTagSymbol = require('es6-symbol').toStringTag
-  , isNative          = require('./is-native-implemented')
-
-  , isArray = Array.isArray, defineProperty = Object.defineProperty
-  , hasOwnProperty = Object.prototype.hasOwnProperty, getPrototypeOf = Object.getPrototypeOf
-  , WeakMapPoly;
-
-module.exports = WeakMapPoly = function (/*iterable*/) {
-	var iterable = arguments[0], self;
-	if (!(this instanceof WeakMapPoly)) throw new TypeError('Constructor requires \'new\'');
-	if (isNative && setPrototypeOf && (WeakMap !== WeakMapPoly)) {
-		self = setPrototypeOf(new WeakMap(), getPrototypeOf(this));
-	} else {
-		self = this;
-	}
-	if (iterable != null) {
-		if (!isArray(iterable)) iterable = getIterator(iterable);
-	}
-	defineProperty(self, '__weakMapData__', d('c', '$weakMap$' + randomUniq()));
-	if (!iterable) return self;
-	forOf(iterable, function (val) {
-		value(val);
-		self.set(val[0], val[1]);
-	});
-	return self;
-};
-
-if (isNative) {
-	if (setPrototypeOf) setPrototypeOf(WeakMapPoly, WeakMap);
-	WeakMapPoly.prototype = Object.create(WeakMap.prototype, {
-		constructor: d(WeakMapPoly)
-	});
-}
-
-Object.defineProperties(WeakMapPoly.prototype, {
-	delete: d(function (key) {
-		if (hasOwnProperty.call(object(key), this.__weakMapData__)) {
-			delete key[this.__weakMapData__];
-			return true;
-		}
-		return false;
-	}),
-	get: d(function (key) {
-		if (hasOwnProperty.call(object(key), this.__weakMapData__)) {
-			return key[this.__weakMapData__];
-		}
-	}),
-	has: d(function (key) {
-		return hasOwnProperty.call(object(key), this.__weakMapData__);
-	}),
-	set: d(function (key, value) {
-		defineProperty(object(key), this.__weakMapData__, d('c', value));
-		return this;
-	}),
-	toString: d(function () { return '[object WeakMap]'; })
-});
-defineProperty(WeakMapPoly.prototype, toStringTagSymbol, d('c', 'WeakMap'));
-
-},{"./is-native-implemented":6,"d":8,"es5-ext/object/set-prototype-of":24,"es5-ext/object/valid-object":28,"es5-ext/object/valid-value":29,"es5-ext/string/random-uniq":34,"es6-iterator/for-of":36,"es6-iterator/get":37,"es6-symbol":42}]},{},[2]);
+// Copyright (C) 2011 Google Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/**
+ * @fileoverview Install a leaky WeakMap emulation on platforms that
+ * don't provide a built-in one.
+ *
+ * <p>Assumes that an ES5 platform where, if {@code WeakMap} is
+ * already present, then it conforms to the anticipated ES6
+ * specification. To run this file on an ES5 or almost ES5
+ * implementation where the {@code WeakMap} specification does not
+ * quite conform, run <code>repairES5.js</code> first.
+ *
+ * <p>Even though WeakMapModule is not global, the linter thinks it
+ * is, which is why it is in the overrides list below.
+ *
+ * <p>NOTE: Before using this WeakMap emulation in a non-SES
+ * environment, see the note below about hiddenRecord.
+ *
+ * @author Mark S. Miller
+ * @requires crypto, ArrayBuffer, Uint8Array, navigator, console
+ * @overrides WeakMap, ses, Proxy
+ * @overrides WeakMapModule
+ */
+
+/**
+ * This {@code WeakMap} emulation is observably equivalent to the
+ * ES-Harmony WeakMap, but with leakier garbage collection properties.
+ *
+ * <p>As with true WeakMaps, in this emulation, a key does not
+ * retain maps indexed by that key and (crucially) a map does not
+ * retain the keys it indexes. A map by itself also does not retain
+ * the values associated with that map.
+ *
+ * <p>However, the values associated with a key in some map are
+ * retained so long as that key is retained and those associations are
+ * not overridden. For example, when used to support membranes, all
+ * values exported from a given membrane will live for the lifetime
+ * they would have had in the absence of an interposed membrane. Even
+ * when the membrane is revoked, all objects that would have been
+ * reachable in the absence of revocation will still be reachable, as
+ * far as the GC can tell, even though they will no longer be relevant
+ * to ongoing computation.
+ *
+ * <p>The API implemented here is approximately the API as implemented
+ * in FF6.0a1 and agreed to by MarkM, Andreas Gal, and Dave Herman,
+ * rather than the offially approved proposal page. TODO(erights):
+ * upgrade the ecmascript WeakMap proposal page to explain this API
+ * change and present to EcmaScript committee for their approval.
+ *
+ * <p>The first difference between the emulation here and that in
+ * FF6.0a1 is the presence of non enumerable {@code get___, has___,
+ * set___, and delete___} methods on WeakMap instances to represent
+ * what would be the hidden internal properties of a primitive
+ * implementation. Whereas the FF6.0a1 WeakMap.prototype methods
+ * require their {@code this} to be a genuine WeakMap instance (i.e.,
+ * an object of {@code [[Class]]} "WeakMap}), since there is nothing
+ * unforgeable about the pseudo-internal method names used here,
+ * nothing prevents these emulated prototype methods from being
+ * applied to non-WeakMaps with pseudo-internal methods of the same
+ * names.
+ *
+ * <p>Another difference is that our emulated {@code
+ * WeakMap.prototype} is not itself a WeakMap. A problem with the
+ * current FF6.0a1 API is that WeakMap.prototype is itself a WeakMap
+ * providing ambient mutability and an ambient communications
+ * channel. Thus, if a WeakMap is already present and has this
+ * problem, repairES5.js wraps it in a safe wrappper in order to
+ * prevent access to this channel. (See
+ * PATCH_MUTABLE_FROZEN_WEAKMAP_PROTO in repairES5.js).
+ */
+
+/**
+ * If this is a full <a href=
+ * "http://code.google.com/p/es-lab/wiki/SecureableES5"
+ * >secureable ES5</a> platform and the ES-Harmony {@code WeakMap} is
+ * absent, install an approximate emulation.
+ *
+ * <p>If WeakMap is present but cannot store some objects, use our approximate
+ * emulation as a wrapper.
+ *
+ * <p>If this is almost a secureable ES5 platform, then WeakMap.js
+ * should be run after repairES5.js.
+ *
+ * <p>See {@code WeakMap} for documentation of the garbage collection
+ * properties of this WeakMap emulation.
+ */
+(function WeakMapModule() {
+  "use strict";
+
+  if (typeof ses !== 'undefined' && ses.ok && !ses.ok()) {
+    // already too broken, so give up
+    return;
+  }
+
+  /**
+   * In some cases (current Firefox), we must make a choice betweeen a
+   * WeakMap which is capable of using all varieties of host objects as
+   * keys and one which is capable of safely using proxies as keys. See
+   * comments below about HostWeakMap and DoubleWeakMap for details.
+   *
+   * This function (which is a global, not exposed to guests) marks a
+   * WeakMap as permitted to do what is necessary to index all host
+   * objects, at the cost of making it unsafe for proxies.
+   *
+   * Do not apply this function to anything which is not a genuine
+   * fresh WeakMap.
+   */
+  function weakMapPermitHostObjects(map) {
+    // identity of function used as a secret -- good enough and cheap
+    if (map.permitHostObjects___) {
+      map.permitHostObjects___(weakMapPermitHostObjects);
+    }
+  }
+  if (typeof ses !== 'undefined') {
+    ses.weakMapPermitHostObjects = weakMapPermitHostObjects;
+  }
+
+  // IE 11 has no Proxy but has a broken WeakMap such that we need to patch
+  // it using DoubleWeakMap; this flag tells DoubleWeakMap so.
+  var doubleWeakMapCheckSilentFailure = false;
+
+  // Check if there is already a good-enough WeakMap implementation, and if so
+  // exit without replacing it.
+  if (typeof WeakMap === 'function') {
+    var HostWeakMap = WeakMap;
+    // There is a WeakMap -- is it good enough?
+    if (typeof navigator !== 'undefined' &&
+        /Firefox/.test(navigator.userAgent)) {
+      // We're now *assuming not*, because as of this writing (2013-05-06)
+      // Firefox's WeakMaps have a miscellany of objects they won't accept, and
+      // we don't want to make an exhaustive list, and testing for just one
+      // will be a problem if that one is fixed alone (as they did for Event).
+
+      // If there is a platform that we *can* reliably test on, here's how to
+      // do it:
+      //  var problematic = ... ;
+      //  var testHostMap = new HostWeakMap();
+      //  try {
+      //    testHostMap.set(problematic, 1);  // Firefox 20 will throw here
+      //    if (testHostMap.get(problematic) === 1) {
+      //      return;
+      //    }
+      //  } catch (e) {}
+
+    } else {
+      // IE 11 bug: WeakMaps silently fail to store frozen objects.
+      var testMap = new HostWeakMap();
+      var testObject = Object.freeze({});
+      testMap.set(testObject, 1);
+      if (testMap.get(testObject) !== 1) {
+        doubleWeakMapCheckSilentFailure = true;
+        // Fall through to installing our WeakMap.
+      } else {
+        module.exports = WeakMap;
+        return;
+      }
+    }
+  }
+
+  var hop = Object.prototype.hasOwnProperty;
+  var gopn = Object.getOwnPropertyNames;
+  var defProp = Object.defineProperty;
+  var isExtensible = Object.isExtensible;
+
+  /**
+   * Security depends on HIDDEN_NAME being both <i>unguessable</i> and
+   * <i>undiscoverable</i> by untrusted code.
+   *
+   * <p>Given the known weaknesses of Math.random() on existing
+   * browsers, it does not generate unguessability we can be confident
+   * of.
+   *
+   * <p>It is the monkey patching logic in this file that is intended
+   * to ensure undiscoverability. The basic idea is that there are
+   * three fundamental means of discovering properties of an object:
+   * The for/in loop, Object.keys(), and Object.getOwnPropertyNames(),
+   * as well as some proposed ES6 extensions that appear on our
+   * whitelist. The first two only discover enumerable properties, and
+   * we only use HIDDEN_NAME to name a non-enumerable property, so the
+   * only remaining threat should be getOwnPropertyNames and some
+   * proposed ES6 extensions that appear on our whitelist. We monkey
+   * patch them to remove HIDDEN_NAME from the list of properties they
+   * returns.
+   *
+   * <p>TODO(erights): On a platform with built-in Proxies, proxies
+   * could be used to trap and thereby discover the HIDDEN_NAME, so we
+   * need to monkey patch Proxy.create, Proxy.createFunction, etc, in
+   * order to wrap the provided handler with the real handler which
+   * filters out all traps using HIDDEN_NAME.
+   *
+   * <p>TODO(erights): Revisit Mike Stay's suggestion that we use an
+   * encapsulated function at a not-necessarily-secret name, which
+   * uses the Stiegler shared-state rights amplification pattern to
+   * reveal the associated value only to the WeakMap in which this key
+   * is associated with that value. Since only the key retains the
+   * function, the function can also remember the key without causing
+   * leakage of the key, so this doesn't violate our general gc
+   * goals. In addition, because the name need not be a guarded
+   * secret, we could efficiently handle cross-frame frozen keys.
+   */
+  var HIDDEN_NAME_PREFIX = 'weakmap:';
+  var HIDDEN_NAME = HIDDEN_NAME_PREFIX + 'ident:' + Math.random() + '___';
+
+  if (typeof crypto !== 'undefined' &&
+      typeof crypto.getRandomValues === 'function' &&
+      typeof ArrayBuffer === 'function' &&
+      typeof Uint8Array === 'function') {
+    var ab = new ArrayBuffer(25);
+    var u8s = new Uint8Array(ab);
+    crypto.getRandomValues(u8s);
+    HIDDEN_NAME = HIDDEN_NAME_PREFIX + 'rand:' +
+      Array.prototype.map.call(u8s, function(u8) {
+        return (u8 % 36).toString(36);
+      }).join('') + '___';
+  }
+
+  function isNotHiddenName(name) {
+    return !(
+        name.substr(0, HIDDEN_NAME_PREFIX.length) == HIDDEN_NAME_PREFIX &&
+        name.substr(name.length - 3) === '___');
+  }
+
+  /**
+   * Monkey patch getOwnPropertyNames to avoid revealing the
+   * HIDDEN_NAME.
+   *
+   * <p>The ES5.1 spec requires each name to appear only once, but as
+   * of this writing, this requirement is controversial for ES6, so we
+   * made this code robust against this case. If the resulting extra
+   * search turns out to be expensive, we can probably relax this once
+   * ES6 is adequately supported on all major browsers, iff no browser
+   * versions we support at that time have relaxed this constraint
+   * without providing built-in ES6 WeakMaps.
+   */
+  defProp(Object, 'getOwnPropertyNames', {
+    value: function fakeGetOwnPropertyNames(obj) {
+      return gopn(obj).filter(isNotHiddenName);
+    }
+  });
+
+  /**
+   * getPropertyNames is not in ES5 but it is proposed for ES6 and
+   * does appear in our whitelist, so we need to clean it too.
+   */
+  if ('getPropertyNames' in Object) {
+    var originalGetPropertyNames = Object.getPropertyNames;
+    defProp(Object, 'getPropertyNames', {
+      value: function fakeGetPropertyNames(obj) {
+        return originalGetPropertyNames(obj).filter(isNotHiddenName);
+      }
+    });
+  }
+
+  /**
+   * <p>To treat objects as identity-keys with reasonable efficiency
+   * on ES5 by itself (i.e., without any object-keyed collections), we
+   * need to add a hidden property to such key objects when we
+   * can. This raises several issues:
+   * <ul>
+   * <li>Arranging to add this property to objects before we lose the
+   *     chance, and
+   * <li>Hiding the existence of this new property from most
+   *     JavaScript code.
+   * <li>Preventing <i>certification theft</i>, where one object is
+   *     created falsely claiming to be the key of an association
+   *     actually keyed by another object.
+   * <li>Preventing <i>value theft</i>, where untrusted code with
+   *     access to a key object but not a weak map nevertheless
+   *     obtains access to the value associated with that key in that
+   *     weak map.
+   * </ul>
+   * We do so by
+   * <ul>
+   * <li>Making the name of the hidden property unguessable, so "[]"
+   *     indexing, which we cannot intercept, cannot be used to access
+   *     a property without knowing the name.
+   * <li>Making the hidden property non-enumerable, so we need not
+   *     worry about for-in loops or {@code Object.keys},
+   * <li>monkey patching those reflective methods that would
+   *     prevent extensions, to add this hidden property first,
+   * <li>monkey patching those methods that would reveal this
+   *     hidden property.
+   * </ul>
+   * Unfortunately, because of same-origin iframes, we cannot reliably
+   * add this hidden property before an object becomes
+   * non-extensible. Instead, if we encounter a non-extensible object
+   * without a hidden record that we can detect (whether or not it has
+   * a hidden record stored under a name secret to us), then we just
+   * use the key object itself to represent its identity in a brute
+   * force leaky map stored in the weak map, losing all the advantages
+   * of weakness for these.
+   */
+  function getHiddenRecord(key) {
+    if (key !== Object(key)) {
+      throw new TypeError('Not an object: ' + key);
+    }
+    var hiddenRecord = key[HIDDEN_NAME];
+    if (hiddenRecord && hiddenRecord.key === key) { return hiddenRecord; }
+    if (!isExtensible(key)) {
+      // Weak map must brute force, as explained in doc-comment above.
+      return void 0;
+    }
+
+    // The hiddenRecord and the key point directly at each other, via
+    // the "key" and HIDDEN_NAME properties respectively. The key
+    // field is for quickly verifying that this hidden record is an
+    // own property, not a hidden record from up the prototype chain.
+    //
+    // NOTE: Because this WeakMap emulation is meant only for systems like
+    // SES where Object.prototype is frozen without any numeric
+    // properties, it is ok to use an object literal for the hiddenRecord.
+    // This has two advantages:
+    // * It is much faster in a performance critical place
+    // * It avoids relying on Object.create(null), which had been
+    //   problematic on Chrome 28.0.1480.0. See
+    //   https://code.google.com/p/google-caja/issues/detail?id=1687
+    hiddenRecord = { key: key };
+
+    // When using this WeakMap emulation on platforms where
+    // Object.prototype might not be frozen and Object.create(null) is
+    // reliable, use the following two commented out lines instead.
+    // hiddenRecord = Object.create(null);
+    // hiddenRecord.key = key;
+
+    // Please contact us if you need this to work on platforms where
+    // Object.prototype might not be frozen and
+    // Object.create(null) might not be reliable.
+
+    try {
+      defProp(key, HIDDEN_NAME, {
+        value: hiddenRecord,
+        writable: false,
+        enumerable: false,
+        configurable: false
+      });
+      return hiddenRecord;
+    } catch (error) {
+      // Under some circumstances, isExtensible seems to misreport whether
+      // the HIDDEN_NAME can be defined.
+      // The circumstances have not been isolated, but at least affect
+      // Node.js v0.10.26 on TravisCI / Linux, but not the same version of
+      // Node.js on OS X.
+      return void 0;
+    }
+  }
+
+  /**
+   * Monkey patch operations that would make their argument
+   * non-extensible.
+   *
+   * <p>The monkey patched versions throw a TypeError if their
+   * argument is not an object, so it should only be done to functions
+   * that should throw a TypeError anyway if their argument is not an
+   * object.
+   */
+  (function(){
+    var oldFreeze = Object.freeze;
+    defProp(Object, 'freeze', {
+      value: function identifyingFreeze(obj) {
+        getHiddenRecord(obj);
+        return oldFreeze(obj);
+      }
+    });
+    var oldSeal = Object.seal;
+    defProp(Object, 'seal', {
+      value: function identifyingSeal(obj) {
+        getHiddenRecord(obj);
+        return oldSeal(obj);
+      }
+    });
+    var oldPreventExtensions = Object.preventExtensions;
+    defProp(Object, 'preventExtensions', {
+      value: function identifyingPreventExtensions(obj) {
+        getHiddenRecord(obj);
+        return oldPreventExtensions(obj);
+      }
+    });
+  })();
+
+  function constFunc(func) {
+    func.prototype = null;
+    return Object.freeze(func);
+  }
+
+  var calledAsFunctionWarningDone = false;
+  function calledAsFunctionWarning() {
+    // Future ES6 WeakMap is currently (2013-09-10) expected to reject WeakMap()
+    // but we used to permit it and do it ourselves, so warn only.
+    if (!calledAsFunctionWarningDone && typeof console !== 'undefined') {
+      calledAsFunctionWarningDone = true;
+      console.warn('WeakMap should be invoked as new WeakMap(), not ' +
+          'WeakMap(). This will be an error in the future.');
+    }
+  }
+
+  var nextId = 0;
+
+  var OurWeakMap = function() {
+    if (!(this instanceof OurWeakMap)) {  // approximate test for new ...()
+      calledAsFunctionWarning();
+    }
+
+    // We are currently (12/25/2012) never encountering any prematurely
+    // non-extensible keys.
+    var keys = []; // brute force for prematurely non-extensible keys.
+    var values = []; // brute force for corresponding values.
+    var id = nextId++;
+
+    function get___(key, opt_default) {
+      var index;
+      var hiddenRecord = getHiddenRecord(key);
+      if (hiddenRecord) {
+        return id in hiddenRecord ? hiddenRecord[id] : opt_default;
+      } else {
+        index = keys.indexOf(key);
+        return index >= 0 ? values[index] : opt_default;
+      }
+    }
+
+    function has___(key) {
+      var hiddenRecord = getHiddenRecord(key);
+      if (hiddenRecord) {
+        return id in hiddenRecord;
+      } else {
+        return keys.indexOf(key) >= 0;
+      }
+    }
+
+    function set___(key, value) {
+      var index;
+      var hiddenRecord = getHiddenRecord(key);
+      if (hiddenRecord) {
+        hiddenRecord[id] = value;
+      } else {
+        index = keys.indexOf(key);
+        if (index >= 0) {
+          values[index] = value;
+        } else {
+          // Since some browsers preemptively terminate slow turns but
+          // then continue computing with presumably corrupted heap
+          // state, we here defensively get keys.length first and then
+          // use it to update both the values and keys arrays, keeping
+          // them in sync.
+          index = keys.length;
+          values[index] = value;
+          // If we crash here, values will be one longer than keys.
+          keys[index] = key;
+        }
+      }
+      return this;
+    }
+
+    function delete___(key) {
+      var hiddenRecord = getHiddenRecord(key);
+      var index, lastIndex;
+      if (hiddenRecord) {
+        return id in hiddenRecord && delete hiddenRecord[id];
+      } else {
+        index = keys.indexOf(key);
+        if (index < 0) {
+          return false;
+        }
+        // Since some browsers preemptively terminate slow turns but
+        // then continue computing with potentially corrupted heap
+        // state, we here defensively get keys.length first and then use
+        // it to update both the keys and the values array, keeping
+        // them in sync. We update the two with an order of assignments,
+        // such that any prefix of these assignments will preserve the
+        // key/value correspondence, either before or after the delete.
+        // Note that this needs to work correctly when index === lastIndex.
+        lastIndex = keys.length - 1;
+        keys[index] = void 0;
+        // If we crash here, there's a void 0 in the keys array, but
+        // no operation will cause a "keys.indexOf(void 0)", since
+        // getHiddenRecord(void 0) will always throw an error first.
+        values[index] = values[lastIndex];
+        // If we crash here, values[index] cannot be found here,
+        // because keys[index] is void 0.
+        keys[index] = keys[lastIndex];
+        // If index === lastIndex and we crash here, then keys[index]
+        // is still void 0, since the aliasing killed the previous key.
+        keys.length = lastIndex;
+        // If we crash here, keys will be one shorter than values.
+        values.length = lastIndex;
+        return true;
+      }
+    }
+
+    return Object.create(OurWeakMap.prototype, {
+      get___:    { value: constFunc(get___) },
+      has___:    { value: constFunc(has___) },
+      set___:    { value: constFunc(set___) },
+      delete___: { value: constFunc(delete___) }
+    });
+  };
+
+  OurWeakMap.prototype = Object.create(Object.prototype, {
+    get: {
+      /**
+       * Return the value most recently associated with key, or
+       * opt_default if none.
+       */
+      value: function get(key, opt_default) {
+        return this.get___(key, opt_default);
+      },
+      writable: true,
+      configurable: true
+    },
+
+    has: {
+      /**
+       * Is there a value associated with key in this WeakMap?
+       */
+      value: function has(key) {
+        return this.has___(key);
+      },
+      writable: true,
+      configurable: true
+    },
+
+    set: {
+      /**
+       * Associate value with key in this WeakMap, overwriting any
+       * previous association if present.
+       */
+      value: function set(key, value) {
+        return this.set___(key, value);
+      },
+      writable: true,
+      configurable: true
+    },
+
+    'delete': {
+      /**
+       * Remove any association for key in this WeakMap, returning
+       * whether there was one.
+       *
+       * <p>Note that the boolean return here does not work like the
+       * {@code delete} operator. The {@code delete} operator returns
+       * whether the deletion succeeds at bringing about a state in
+       * which the deleted property is absent. The {@code delete}
+       * operator therefore returns true if the property was already
+       * absent, whereas this {@code delete} method returns false if
+       * the association was already absent.
+       */
+      value: function remove(key) {
+        return this.delete___(key);
+      },
+      writable: true,
+      configurable: true
+    }
+  });
+
+  if (typeof HostWeakMap === 'function') {
+    (function() {
+      // If we got here, then the platform has a WeakMap but we are concerned
+      // that it may refuse to store some key types. Therefore, make a map
+      // implementation which makes use of both as possible.
+
+      // In this mode we are always using double maps, so we are not proxy-safe.
+      // This combination does not occur in any known browser, but we had best
+      // be safe.
+      if (doubleWeakMapCheckSilentFailure && typeof Proxy !== 'undefined') {
+        Proxy = undefined;
+      }
+
+      function DoubleWeakMap() {
+        if (!(this instanceof OurWeakMap)) {  // approximate test for new ...()
+          calledAsFunctionWarning();
+        }
+
+        // Preferable, truly weak map.
+        var hmap = new HostWeakMap();
+
+        // Our hidden-property-based pseudo-weak-map. Lazily initialized in the
+        // 'set' implementation; thus we can avoid performing extra lookups if
+        // we know all entries actually stored are entered in 'hmap'.
+        var omap = undefined;
+
+        // Hidden-property maps are not compatible with proxies because proxies
+        // can observe the hidden name and either accidentally expose it or fail
+        // to allow the hidden property to be set. Therefore, we do not allow
+        // arbitrary WeakMaps to switch to using hidden properties, but only
+        // those which need the ability, and unprivileged code is not allowed
+        // to set the flag.
+        //
+        // (Except in doubleWeakMapCheckSilentFailure mode in which case we
+        // disable proxies.)
+        var enableSwitching = false;
+
+        function dget(key, opt_default) {
+          if (omap) {
+            return hmap.has(key) ? hmap.get(key)
+                : omap.get___(key, opt_default);
+          } else {
+            return hmap.get(key, opt_default);
+          }
+        }
+
+        function dhas(key) {
+          return hmap.has(key) || (omap ? omap.has___(key) : false);
+        }
+
+        var dset;
+        if (doubleWeakMapCheckSilentFailure) {
+          dset = function(key, value) {
+            hmap.set(key, value);
+            if (!hmap.has(key)) {
+              if (!omap) { omap = new OurWeakMap(); }
+              omap.set(key, value);
+            }
+            return this;
+          };
+        } else {
+          dset = function(key, value) {
+            if (enableSwitching) {
+              try {
+                hmap.set(key, value);
+              } catch (e) {
+                if (!omap) { omap = new OurWeakMap(); }
+                omap.set___(key, value);
+              }
+            } else {
+              hmap.set(key, value);
+            }
+            return this;
+          };
+        }
+
+        function ddelete(key) {
+          var result = !!hmap['delete'](key);
+          if (omap) { return omap.delete___(key) || result; }
+          return result;
+        }
+
+        return Object.create(OurWeakMap.prototype, {
+          get___:    { value: constFunc(dget) },
+          has___:    { value: constFunc(dhas) },
+          set___:    { value: constFunc(dset) },
+          delete___: { value: constFunc(ddelete) },
+          permitHostObjects___: { value: constFunc(function(token) {
+            if (token === weakMapPermitHostObjects) {
+              enableSwitching = true;
+            } else {
+              throw new Error('bogus call to permitHostObjects___');
+            }
+          })}
+        });
+      }
+      DoubleWeakMap.prototype = OurWeakMap.prototype;
+      module.exports = DoubleWeakMap;
+
+      // define .constructor to hide OurWeakMap ctor
+      Object.defineProperty(WeakMap.prototype, 'constructor', {
+        value: WeakMap,
+        enumerable: false,  // as default .constructor is
+        configurable: true,
+        writable: true
+      });
+    })();
+  } else {
+    // There is no host WeakMap, so we must use the emulation.
+
+    // Emulated WeakMaps are incompatible with native proxies (because proxies
+    // can observe the hidden name), so we must disable Proxy usage (in
+    // ArrayLike and Domado, currently).
+    if (typeof Proxy !== 'undefined') {
+      Proxy = undefined;
+    }
+
+    module.exports = OurWeakMap;
+  }
+})();
+
+},{}]},{},[2]);

@@ -7,6 +7,6 @@
     "uglify-js": "^2.4.24"
   },
   "dependencies": {
-    "es6-weak-map": "^1.0.2"
+    "weak-map": "^1.0.2"
   }
 }

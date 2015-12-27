@@ -1,7 +1,8 @@
-(function() {
+(function () {
   var ViewportInfo = this.ViewportInfo || require('./viewport-info');
   var SrcsetInfo = this.SrcsetInfo || require('./srcset-info');
-  var WeakMap = require('es6-weak-map');
+  var WeakMap = require('weak-map');
+  console.log('tataa');
 
   var srcset = {};
 
@@ -54,13 +55,58 @@
     };
   }
 
+  // https://gist.github.com/stucox/5231211
+  var hasMO = (function () {
+    var prefixes = ['WebKit', 'Moz', 'O', 'Ms', ''];
+
+    for (var i=0; i < prefixes.length; i++) {
+      if ((prefixes[i] + 'MutationObserver') in window) {
+        return window[prefixes[i] + 'MutationObserver'];
+      }
+    }
+
+    return false;
+  }());
+
   function SrcsetView(el) {
     this.el = el;
 
-    this.srcsetInfo = new SrcsetInfo({
+    this.srcsetInfo = new SrcsetInfo(this.el, {
       src: this.el.src,
       srcset: this.el.dataset.srcset
     });
+
+    //
+    // Observe data-srcset attributes mutations to keep this.srcsetInfo up-to-date (if available)
+    //
+
+    if (hasMO) {
+      this.mo = new MutationObserver(function (mutations) {
+        mutations.forEach(function (mutation) {
+          console.log(mutation);
+
+          if (mutation.target === this.el && mutation.type === 'attributes') {
+            if (mutation.attributeName === 'src') {
+              this.srcsetInfo.srcValue = mutation.target.src;
+            }
+
+            if (mutation.attributeName === 'data-srcset') {
+              this.srcsetInfo.imageCandidates = []; // reset imageCandidates
+              this.srcsetInfo.srcsetValue = mutation.target.dataset.srcset;
+
+              this.srcsetInfo._parse(this.srcsetInfo.srcsetValue);
+              if (!this.srcsetInfo.isValid) {
+                console.error('Error: ' + this.srcsetInfo.error);
+              }
+
+              this.update({force: true});
+            }
+          }
+        }.bind(this));    
+      }.bind(this));
+       
+      this.mo.observe(this.el, {attributes: true});
+    }
   }
   SrcsetView.prototype.update = function (options) {
     options || (options = {});
@@ -74,30 +120,35 @@
       if (this.srcsetInfo) {
         var bestImageInfo = viewportInfo.getBestImage(this.srcsetInfo);
 
+        var oldsrc = this.el.src;
+        var newsrc = bestImageInfo.src;
+
+        if (newsrc === oldsrc) return false; // same, no need to update
+
+        //console.log('updating src', this.el, oldsrc, newsrc);
+
+        var eventdata = {
+          previous: oldsrc,
+          actual: newsrc,
+          bubbles: true
+        };
+
         //
         // 'srcchanging' event
         //
 
-        var srcchanging = new CustomEvent('srcchanging', {
-          previous: this.el.src,
-          actual: bestImageInfo.src,
-          bubbles: true
-        });
+        var srcchanging = new CustomEvent('srcchanging', eventdata);
         this.el.dispatchEvent(srcchanging);
 
         //
         // 'srcchanged' event
         //
         
-        var srcchanged = new CustomEvent('srcchanged', {
-          previous: this.el.src,
-          actual: bestImageInfo.src,
-          bubbles: true
-        });
+        var srcchanged = new CustomEvent('srcchanged', eventdata);
         // Wait the new image is loaded
-        imgloaded(bestImageInfo.src, function () {
+        imgloaded(newsrc, function () {
           // Change src
-          this.el.src = bestImageInfo.src;
+          this.el.src = newsrc;
 
           // Dispatch 'srcchanged'
           setTimeout(function () {
@@ -120,6 +171,7 @@
 
     // Update every images
     [].forEach.call(document.querySelectorAll('img[data-srcset]'), function (el) {
+      console.log('tata', el);
       var srcsetview = srcsetViews.get(el);
       if (!srcsetview) {
         srcsetview = new SrcsetView(el);
