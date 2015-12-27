@@ -163,7 +163,7 @@
 
         // Wait the new image is loaded and send 'srcprogress'
         progress(newsrc, function (percent) {
-          var srcprogress = new CustomEvent('srcprogress', percent);
+          var srcprogress = new CustomEvent('srcprogress', {percent: percent});
           this.el.dispatchEvent(srcprogress);
         }.bind(this), function (er) {
           if (er) return console.error(er);
