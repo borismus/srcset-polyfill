@@ -170,27 +170,6 @@
   var windowResizedAt = (new Date).getTime();
   srcset.windowResizedAt = windowResizedAt;
 
-  // https://gist.github.com/abernier/6461914#load-with-progress
-  function progress(url, tick, cb) {
-    tick || (tick = function () {});
-    cb || (cb = function () {});
-
-    var xhr = new XMLHttpRequest();
-    xhr.onprogress = function (e) {
-      if (e.lengthComputable) {
-        tick(e.loaded / e.total);
-      }
-    };
-    xhr.onload = function () {
-      cb(null);
-    };
-    xhr.onerror = function (er) {
-      cb(er);
-    };
-    xhr.open("GET", url, true);
-    xhr.send();
-  }
-
   // Picked from underscore.js
   function debounce(func, wait, immediate) {
     var timeout, args, context, timestamp, result;
@@ -287,8 +266,8 @@
       }
     }
 
-    var needUpdate = (!this.srcupdatedat || this.srcupdatedat < windowResizedAt || srcsetchanged);
-    if (!this.el.src || needUpdate || options.force) {
+    var needUpdate = (!this.srcupdatedat || this.srcupdatedat < windowResizedAt);
+    if (!this.el.src || needUpdate || srcsetchanged || options.force) {
 
       if (this.srcsetInfo) {
         var bestImageInfo = viewportInfo.getBestImage(this.srcsetInfo);
@@ -300,39 +279,23 @@
 
         //console.log('updating src', this.el, oldsrc, newsrc);
 
-        var eventdata = {
-          previous: oldsrc,
-          actual: newsrc,
-          bubbles: true
-        };
-
-        //
-        // 'srcchanging' event
-        //
-
-        var srcchanging = new CustomEvent('srcchanging', eventdata);
-        this.el.dispatchEvent(srcchanging);
-
         //
         // 'srcchanged' event
         //
         
-        var srcchanged = new CustomEvent('srcchanged', eventdata);
+        var srcchanged = new CustomEvent('srcchanged', {
+          detail: {
+            previous: oldsrc,
+            actual: newsrc
+          },
+          bubbles: true
+        });
 
-        // Wait the new image is loaded and send 'srcprogress'
-        progress(newsrc, function (percent) {
-          var srcprogress = new CustomEvent('srcprogress', {percent: percent});
-          this.el.dispatchEvent(srcprogress);
-        }.bind(this), function (er) {
-          if (er) return console.error(er);
-
-          this.el.src = newsrc;
-
-          // Dispatch 'srcchanged'
-          setTimeout(function () {
-            this.el.dispatchEvent(srcchanged);
-          }.bind(this), 0);
-        }.bind(this));
+        this.el.src = newsrc;
+        // Dispatch 'srcchanged'
+        setTimeout(function () {
+          this.el.dispatchEvent(srcchanged);
+        }.bind(this), 0);
       }
 
       // Remember when updated to compare with window's resizeAt timestamp
