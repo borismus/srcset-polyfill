@@ -170,13 +170,25 @@
   var windowResizedAt = (new Date).getTime();
   srcset.windowResizedAt = windowResizedAt;
 
-  // https://gist.github.com/abernier/6461914#imgloaded
-  function imgloaded(src, cb) {
-    var img = document.createElement('img');
-    img.onload = function () {
+  // https://gist.github.com/abernier/6461914#load-with-progress
+  function progress(url, tick, cb) {
+    tick || (tick = function () {});
+    cb || (cb = function () {});
+
+    var xhr = new XMLHttpRequest();
+    xhr.onprogress = function (e) {
+      if (e.lengthComputable) {
+        tick(e.loaded / e.total);
+      }
+    };
+    xhr.onload = function () {
       cb(null);
-    }
-    img.src = src;
+    };
+    xhr.onerror = function (er) {
+      cb(er);
+    };
+    xhr.open("GET", url, true);
+    xhr.send();
   }
 
   // Picked from underscore.js
@@ -306,9 +318,14 @@
         //
         
         var srcchanged = new CustomEvent('srcchanged', eventdata);
-        // Wait the new image is loaded
-        imgloaded(newsrc, function () {
-          // Change src
+
+        // Wait the new image is loaded and send 'srcprogress'
+        progress(newsrc, function (percent) {
+          var srcprogress = new CustomEvent('srcprogress', percent);
+          this.el.dispatchEvent(srcprogress);
+        }.bind(this), function (er) {
+          if (er) return console.error(er);
+
           this.el.src = newsrc;
 
           // Dispatch 'srcchanged'
