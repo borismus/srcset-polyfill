@@ -102,7 +102,7 @@
     });*/
     
     if (this.srcsetInfo.srcValue !== this.el.src) {
-      this.srcsetInfo.srcValue = mutation.target.src;
+      this.srcsetInfo.srcValue = this.el.src;
     }
 
     var srcsetchanged;
