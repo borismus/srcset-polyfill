@@ -229,7 +229,7 @@
   function SrcsetView(el) {
     this.el = el;
 
-    this.srcsetInfo = new SrcsetInfo(this.el, {
+    this.srcsetInfo = new SrcsetInfo({
       src: this.el.src,
       srcset: this.el.dataset.srcset
     });
