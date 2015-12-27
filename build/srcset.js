@@ -244,20 +244,8 @@
           console.log(mutation);
 
           if (mutation.target === this.el && mutation.type === 'attributes') {
-            if (mutation.attributeName === 'src') {
-              this.srcsetInfo.srcValue = mutation.target.src;
-            }
-
-            if (mutation.attributeName === 'data-srcset') {
-              this.srcsetInfo.imageCandidates = []; // reset imageCandidates
-              this.srcsetInfo.srcsetValue = mutation.target.dataset.srcset;
-
-              this.srcsetInfo._parse(this.srcsetInfo.srcsetValue);
-              if (!this.srcsetInfo.isValid) {
-                console.error('Error: ' + this.srcsetInfo.error);
-              }
-
-              this.update({force: true});
+            if (mutation.attributeName === 'src' || mutation.attributeName === 'data-srcset') {
+              this.update();
             }
           }
         }.bind(this));    
@@ -271,8 +259,24 @@
     /*options = $.extend({}, options, {
       force: false
     });*/
+    
+    if (this.srcsetInfo.srcValue !== this.el.src) {
+      this.srcsetInfo.srcValue = mutation.target.src;
+    }
 
-    var needUpdate = (!this.srcupdatedat || this.srcupdatedat < windowResizedAt);
+    var srcsetchanged;
+    if (this.srcsetInfo.srcsetValue !== this.el.dataset.srcset) {
+      srcsetchanged = true;
+
+      this.srcsetInfo.imageCandidates = []; // reset imageCandidates
+      this.srcsetInfo.srcsetValue = this.el.dataset.srcset;
+      this.srcsetInfo._parse(this.srcsetInfo.srcsetValue);
+      if (!this.srcsetInfo.isValid) {
+        console.error('Error: ' + this.srcsetInfo.error);
+      }
+    }
+
+    var needUpdate = (!this.srcupdatedat || this.srcupdatedat < windowResizedAt || srcsetchanged);
     if (!this.el.src || needUpdate || options.force) {
 
       if (this.srcsetInfo) {
