@@ -2,6 +2,26 @@
 
 See [the specification][spec] for the reference algorithm.
 
+## INSTALL
+
+with NPM:
+
+```sh
+npm install https://github.com/abernier/srcset-polyfill/archive/patch-abernier-bunchofthings.tar.gz
+```
+
+or with a plain old `<script>` tag:
+
+```html
+<script src="https://cdn.rawgit.com/abernier/srcset-polyfill/patch-abernier-bunchofthings/build/srcset.js"></script>
+```
+
+or with the minified version:
+
+```html
+<script src="https://cdn.rawgit.com/abernier/srcset-polyfill/patch-abernier-bunchofthings/build/srcset.min.js"></script>
+```
+
 ## Usage
 
 Use the `data-srcset` attribute of `<img>` elements. For example:
