@@ -8,17 +8,48 @@ Please use <https://github.com/scottjehl/picturefill> instead.
 
 See [the specification][spec] for the reference algorithm.
 
+## INSTALL
+
+with NPM:
+
+```sh
+npm install https://github.com/abernier/srcset-polyfill/archive/patch-abernier-bunchofthings.tar.gz
+```
+
+or with a plain old `<script>` tag:
+
+```html
+<script src="https://cdn.rawgit.com/abernier/srcset-polyfill/patch-abernier-bunchofthings/build/srcset.js"></script>
+```
+
+or with the minified version:
+
+```html
+<script src="https://cdn.rawgit.com/abernier/srcset-polyfill/patch-abernier-bunchofthings/build/srcset.min.js"></script>
+```
+
 ## Usage
 
-Use the `srcset` attribute of `<img>` elements. For example:
+Use the `data-srcset` attribute of `<img>` elements. For example:
 
-    <img alt="The Breakfast Combo"
-         src="banner.jpeg"
-         srcset="banner-HD.jpeg 2x, banner-phone.jpeg 100w,
-                 banner-phone-HD.jpeg 100w 2x"/>
+```html
+<img alt="The Breakfast Combo"
+  src="160x120.png"
+  data-srcset="320x240.png 320w,640x480 320w 2x, 768x576.png 768w,1536x1152.png 768w 2x, 1024x768.png 1024w,2048x1536.png 1024w 2x, 2048x1536.png 5000w">
+```
 
+Include `build/srcset.min.js` in your page. Then, you'll have a `srcset` object with the following API :
 
-Include `build/srcset.min.js` in your page.
+ - `srcset.update()` -- update all images in the page
+ - `srcset.imgs.get(<img>).update()` -- update one image
+
+A `'srcchange'` event will also be triggered when the `src` of an image changes :
+
+```javascript
+myimg.addEventListener('srcchanged', function (data) {
+	console.log("img with previous src %s was changed to %s", data.previous, data.actual)
+}, false);
+```
 
 ## Open questions
 

@@ -2,15 +2,21 @@
 <html>
   <head>
     <title>Srcset Polyfill Demo</title>
-    <script src="../build/srcset.js"></script>
+    <meta name="viewport" content="width=device-width,minimum-scale=1,maximum-scale=1,initial-scale=1,user-scalable=no">
+
     <style>
-      body { background: gray; }
+    img {max-width:100%;}
     </style>
   </head>
+  <body>
 
-  <div id="container"><img alt="The Breakfast Combo"
-         src="banner.jpeg"
-         srcset="banner-HD.jpeg 2x, banner-phone.jpeg 100w, banner-phone-HD.jpeg 100w 2x"></div>
+  <div id="container">
+    <img alt="The Breakfast Combo"
+      src="160x120.png"
+      data-srcset="320x240.png 320w,640x480 320w 2x, 768x576.png 768w,1536x1152.png 768w 2x, 1024x768.png 1024w,2048x1536.png 1024w 2x, 2048x1536.png 5000w">
+  </div>
+
+  <script src="../build/srcset.js"></script>
   </body>
 </html>
 

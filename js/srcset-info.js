@@ -1,4 +1,4 @@
-(function(exports) {
+(function() {
   var INT_REGEXP = /^[0-9]+$/;
 
   function SrcsetInfo(options) {
@@ -145,6 +145,11 @@
     this.x = options.x || 1;
   }
 
-  exports.SrcsetInfo = SrcsetInfo;
 
-})(window);
+  // Exports
+  this.SrcsetInfo = SrcsetInfo;
+  if (typeof module !== "undefined" && module !== null) {
+    module.exports = this.SrcsetInfo;
+  }
+
+})(this);
