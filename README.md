@@ -49,3 +49,10 @@ width restriction (in the above example; `large.jpg`).
 
 [spec]: http://www.whatwg.org/specs/web-apps/current-work/multipage/embedded-content-1.html#processing-the-image-candidates
 [issue11]: https://github.com/borismus/srcset-polyfill/issues/11
+
+## Support
+
+If you're having problems with using the project, use the support forum at CodersClan.
+
+<a href="http://codersclan.net/forum/index.php?repo_id=30"><img src="http://www.codersclan.net/graphics/getSupport_blue_big.png" width="160"></a>
+
